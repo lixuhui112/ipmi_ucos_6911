@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\driverlib\driverlib.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\ipmi_6911.ewp</path>
+  </project>
+  <batchBuild/>
+</workspace>
+
+
