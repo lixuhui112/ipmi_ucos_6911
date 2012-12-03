@@ -141,13 +141,13 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
                 switch (ctx_cmd->req_len)
                 {
                     case 0:
-                        ipmi_led_blink(1);
+                        led_change(IPMI_LED_IDENTIFY);
                         break;
                     case 1:
-                        ipmi_led_blink(ctx_cmd->req.data[0]);
+                        led_change(ctx_cmd->req.data[0]);
                         break;
                     case 2:
-                        ipmi_led_blink(IPMI_LED_ON);
+                        led_change(IPMI_LED_ON);
                         break;
                     default:
                         ipmi_cmd_err(ctx_cmd, IPMI_CC_REQ_DATA_INV_LENGTH);

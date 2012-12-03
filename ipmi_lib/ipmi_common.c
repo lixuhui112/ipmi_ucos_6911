@@ -7,10 +7,11 @@
 // version: v1.0
 //
 //*****************************************************************************
-
+#include <stdlib.h>
 #include "ipmi.h"
 #include "ucos_ii.h"
 #include "app/lib_common.h"
+#include "ipmi_lib/ipmi_common.h"
 
 int ipmi_cmd_err(struct ipmi_ctx *ctx_cmd, uint8_t error)
 {
@@ -32,35 +33,55 @@ int ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen)
 }
 
 
-int ipmi_common_power_onoff(int on)
+
+//*****************************************************************************
+//
+// Defines a timer for IPMI_LED
+//
+//*****************************************************************************
+OS_TMR *led_timer;
+uint8_t led_period = 1;
+
+extern void IO_led1_set(tBoolean bOn);
+void led_blink(void *ptmr, void *param)
 {
-    return 0;
+    static uint8_t led1;
+
+    led1 = !led1;
+
+    IO_led1_set(led1);
 }
 
-void ipmi_led_blink(int delay)
+void led_start(void)
 {
-    switch (delay)
-    {
-        case IPMI_LED_ON:           // always on
-            led_delay_ms = IPMI_LED_SYS_FORCE;
-            led_delay_s = IPMI_LED_SYS_FORCE;
-            break;
+    uint8_t err;
+    uint32_t period;
 
-        case IPMI_LED_SYS:
-            led_delay_ms = IPMI_LED_SYS_OK;
-            led_delay_s = 0;
+    switch (led_period) {
+        case IPMI_LED_ON:
+            period = 10;
             break;
-
         case IPMI_LED_ERR:
-            led_delay_ms = IPMI_LED_SYS_ERR;
-            led_delay_s = 0;
+            period = 5;
             break;
-
         default:
-            led_delay_ms = 0;
-            led_delay_s = IPMI_LED_SYS_IDENTIFY * delay;
+            period = 10 * led_period;
             break;
     }
+    led_timer = OSTmrCreate(0, period, OS_TMR_OPT_PERIODIC, led_blink, NULL, "led_timer", &err);
+    if (err == OS_ERR_NONE)
+    {
+        OSTmrStart(led_timer, &err);
+    }
+}
+
+void led_change(uint8_t period)
+{
+    uint8_t err;
+
+    led_period = period;
+    OSTmrDel(led_timer, &err);
+    led_start();
 }
 
 void ipmi_sensor_init(void)
@@ -69,21 +90,12 @@ void ipmi_sensor_init(void)
     max6635_init();
 #endif
 
-#ifdef IPMI_CHIP_ADT7470
-    adt7470_init();
-#endif
-
-#ifdef IPMI_CHIP_KEY
-    key_init();
-#endif
-
-#if 0
-#ifdef IPMI_CHIP_MC_LOCATOR
-    mc_locator_init();
-#endif
-
 #ifdef IPMI_CHIP_UCD9081
     ucd9081_init();
+#endif
+
+#ifdef IPMI_CHIP_ADT7470
+    adt7470_init();
 #endif
 
 #ifdef IPMI_CHIP_AT24CXX
@@ -92,6 +104,15 @@ void ipmi_sensor_init(void)
 
 #ifdef IPMI_CHIP_INA230
     ina230_init();
+#endif
+
+#ifdef IPMI_CHIP_MC_LOCATOR
+    mc_locator_init();
+#endif
+
+#if 0
+#ifdef IPMI_CHIP_KEY
+    key_init();
 #endif
 #endif
 }
@@ -137,6 +158,11 @@ char ipmi_common_get_poh(unsigned long *poh)
     return 0;
 }
 
+void ipmi_common_power_onoff(int on)
+{
+    return;
+}
+
 #else   // IPMI_MODULES_SPI1_SSIF
 
 char ipmi_common_get_device_id(void)
@@ -163,6 +189,11 @@ char ipmi_common_get_poh(unsigned long *poh)
     *poh = power_on_seconds;
 
     return 0;
+}
+
+void ipmi_common_power_onoff(int on)
+{
+    return;
 }
 
 #endif

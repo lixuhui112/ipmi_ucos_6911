@@ -122,10 +122,8 @@ void BSP_init(void)
     // Initialize the I2C Hardware.         (IPMB/PMB)
     I2C_init();
 
-    //
-    // Initialize the Ethernet Hardware.    (LAN)(V3)
-    //
-    //ETH_init();
+    // Initialize the Ethernet Hardware.    (LAN)
+    ETH_init();
 }
 
 int main(void)

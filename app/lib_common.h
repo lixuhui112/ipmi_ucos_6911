@@ -32,7 +32,7 @@
 #define SYSTICKUS               (1000000 / SYSTICKHZ)
 #define SYSTICKNS               (1000000000 / SYSTICKHZ)
 
-#define SEC2PERIOD(s)           (s * 10)
+#define SEC2PERIOD(s)           ((s) ? (s * 10) : 1)
 
 void delay(unsigned long ulSeconds);
 void init_fail(void);

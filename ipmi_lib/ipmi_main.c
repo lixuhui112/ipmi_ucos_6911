@@ -128,15 +128,6 @@ void ipmi_seq_free(uint8_t seq)
 
 //*****************************************************************************
 //
-// Defines LED blink frequency
-//
-//*****************************************************************************
-unsigned long led_delay_ms = IPMI_LED_SYS_OK;
-unsigned long led_delay_s = 0;
-
-
-//*****************************************************************************
-//
 // Defines IPMI Device available
 //
 //*****************************************************************************
@@ -161,17 +152,6 @@ void ipmi_intf_recv_post(int intf)
     ipmi_recv_intf = intf;
     OSSemPost(ipmi_recv_sem);
 }
-
-extern void IO_led1_set(tBoolean bOn);
-void led_blink(void *ptmr, void *param)
-{
-    static uint8_t led1;
-
-    led1 = !led1;
-
-    IO_led1_set(led1);
-}
-
 
 //*****************************************************************************
 //
@@ -419,9 +399,7 @@ void ipmi_cmd_send_task(void *args)
 
 void ipmi_task_main(void *args)
 {
-    unsigned long led = 0;
-    uint8_t err;
-    OS_TMR *tmr1;
+    //unsigned long led = 0;
     //unsigned long cnt = 0;
     //char str[32];
 
@@ -444,27 +422,12 @@ void ipmi_task_main(void *args)
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
 
     // ¶¨Ê±Æ÷
-    tmr1 = OSTmrCreate(0, SEC2PERIOD(1), OS_TMR_OPT_PERIODIC, led_blink, NULL, "led_blink", &err);
-    if (err == OS_ERR_NONE)
-    {
-        OSTmrStart(tmr1, &err);
-    }
+    led_start();
 
     while (1)
     {
-        if (led_delay_s == IPMI_LED_SYS_FORCE && led_delay_ms == IPMI_LED_SYS_FORCE)
-        {
-            OSTimeDlyHMSM(0, 0, 1, 0);
-            led = 1;
-        }
-        else
-        {
-            OSTimeDlyHMSM(0, 0, led_delay_s, led_delay_ms);
-            led = !led;
-        }
-
-        IO_cpu_led_set(led);
-
+        OSTimeDlyHMSM(0, 0, 1, 0);
+        //IO_cpu_led_set(led);
         //usnprintf(str, 32, "cnt=%d\r\n", cnt++);
         //UARTprintf(str);
     }
@@ -482,16 +445,4 @@ void ipmi_main_start(void)
     OSStart();
 }
 
-#if 0
-//*****************************************************************************
-//
-// The ETH0 interrupt handler.
-//
-//*****************************************************************************
-void ETH0IntHandler(void)
-{
-    ipmi_intf_recv_post(IPMI_INTF_ETH);
-}
-
-#endif
 

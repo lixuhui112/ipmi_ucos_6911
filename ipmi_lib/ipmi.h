@@ -549,4 +549,5 @@ extern unsigned long device_available;
 #include "ipmi_lib/ipmi_se.h"
 #include "ipmi_lib/ipmi_app.h"
 
-#endif                /* IPMI_H */
+#endif  /* _IPMI_H_ */
+

@@ -30,14 +30,14 @@
 extern uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE];
 
 
-#include "ipmi.h"
+#include "ipmi_lib/ipmi.h"
 
-#include "lib_spi.h"
-#include "lib_i2c.h"
-#include "lib_uart.h"
-#include "lib_eth.h"
-#include "lib_io.h"
-#include "lib_slot.h"
+#include "app/lib_spi.h"
+#include "app/lib_i2c.h"
+#include "app/lib_uart.h"
+#include "app/lib_eth.h"
+#include "app/lib_io.h"
+#include "app/lib_slot.h"
 
 
 // SSIF½Ó¿Ú¶ÁÐ´º¯Êý

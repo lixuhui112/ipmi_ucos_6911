@@ -297,11 +297,11 @@ static I2C_DRIVER i2c1;
 static unsigned char i2c0_rx_buf[I2C0_BUF_SIZE];
 static unsigned char i2c0_tx_buf[I2C0_BUF_SIZE];
 static unsigned char i2c0_rx_idx;
-static unsigned char i2c0_tx_idx;
 static unsigned char i2c0_rx_len;
+static unsigned char i2c0_tx_idx;
 static unsigned char i2c0_tx_len;
 static unsigned char i2c0_ipmb_addr = IPMB_SLAVE_ADDR_DEF;
-static unsigned long i2c0_rx_timestamp;
+//static unsigned long i2c0_rx_timestamp;
 //*****************************************************************************
 //
 // The interrupt handler for the I2C0 interrupt.
@@ -611,11 +611,9 @@ void I2C_i2c0_ipmb_init(void)
 //*****************************************************************************
 int I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 {
-    unsigned long i;
-
-    for (i = 0; i < i2c0_rx_len; i++)
+    for (i2c0_rx_idx = 0; i2c0_rx_idx < i2c0_rx_len; i2c0_rx_idx++)
     {
-        buf[i] = i2c0_rx_buf[i];
+        buf[i2c0_rx_idx] = i2c0_rx_buf[i2c0_rx_idx];
     }
 
     *size = i2c0_rx_len;
@@ -630,21 +628,21 @@ int I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 //*****************************************************************************
 int I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size)
 {
-    unsigned long i, j;
+    unsigned char j;
 
     // 先写前导码
-    for (i = 0; i < sizeof(IPMI_FRAME_CHAR); i++)
+    for (i2c0_tx_idx = 0; i2c0_tx_idx < sizeof(IPMI_FRAME_CHAR); i2c0_tx_idx++)
     {
-        i2c0_tx_buf[i] = IPMI_FRAME_CHAR[i];
+        i2c0_tx_buf[i2c0_tx_idx] = IPMI_FRAME_CHAR[i2c0_tx_idx];
     }
 
     // 写数据
-    for (j = 0; j < size && i < I2C0_BUF_SIZE; j++, i++)
+    for (j = 0; j < size && i2c0_tx_idx < I2C0_BUF_SIZE; j++, i2c0_tx_idx++)
     {
-        i2c0_tx_buf[i] = buf[j];
+        i2c0_tx_buf[i2c0_tx_idx] = buf[j];
     }
 
-    i2c0_tx_len = i;
+    i2c0_tx_len = i2c0_tx_idx;
     i2c0_tx_idx = 0;
 
     I2C_dev_write(I2C0_MASTER_BASE, slave_addr, 0, 1, i2c0_tx_len, (char*)i2c0_tx_buf);
@@ -757,14 +755,14 @@ static I2C_DRIVER i2c1;
 
 #define I2C1_BUF_SIZE           0x80                        // IPMB帧最大长度
 
-static unsigned char i2c1_rx_buf[I2C1_BUF_SIZE];
-static unsigned char i2c1_tx_buf[I2C1_BUF_SIZE];
-static unsigned char i2c1_rx_idx;
-static unsigned char i2c1_tx_idx;
-static unsigned char i2c1_rx_len;
-static unsigned char i2c1_tx_len;
-static unsigned char i2c1_ipmb_addr = IPMB_SLAVE_ADDR_DEF;
-static unsigned long i2c1_rx_timestamp;
+//static unsigned char i2c1_rx_buf[I2C1_BUF_SIZE];
+//static unsigned char i2c1_tx_buf[I2C1_BUF_SIZE];
+//static unsigned char i2c1_rx_idx;
+//static unsigned char i2c1_tx_idx;
+//static unsigned char i2c1_rx_len;
+//static unsigned char i2c1_tx_len;
+//static unsigned char i2c1_ipmb_addr = IPMB_SLAVE_ADDR_DEF;
+//static unsigned long i2c1_rx_timestamp;
 
 //*****************************************************************************
 //

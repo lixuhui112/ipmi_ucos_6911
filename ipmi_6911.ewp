@@ -230,7 +230,7 @@
         </option>
         <option>
           <name>CCDebugInfo</name>
-          <state>1</state>
+          <state>0</state>
         </option>
         <option>
           <name>IEndianMode</name>
@@ -298,6 +298,9 @@
           <state>$PROJ_DIR$\app</state>
           <state>$PROJ_DIR$\ucos\src</state>
           <state>$PROJ_DIR$\ucos\ports</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\uip</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\apps</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\apps\httpd</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -1776,6 +1779,9 @@
       <name>$PROJ_DIR$\app\lib_common.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\app\lib_eth.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\app\lib_i2c.c</name>
     </file>
     <file>
@@ -1863,10 +1869,10 @@
       <name>$PROJ_DIR$\ipmi_lib\sensor_adt7470.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\ipmi_lib\sensor_ina230.c</name>
+      <name>$PROJ_DIR$\ipmi_lib\sensor_at24xx.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\ipmi_lib\sensor_key.c</name>
+      <name>$PROJ_DIR$\ipmi_lib\sensor_ina230.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\sensor_max6635.c</name>
@@ -1884,10 +1890,16 @@
   <group>
     <name>third_party</name>
     <file>
-      <name>$PROJ_DIR$\third_party\softi2c.c</name>
+      <name>$PROJ_DIR$\third_party\uartstdio.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\third_party\uartstdio.c</name>
+      <name>$PROJ_DIR$\third_party\uip-1.0\uip\uip.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\third_party\uip-1.0\uip\uip_arp.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\third_party\uip-1.0\uip\uip_timer.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\third_party\ustdlib.c</name>

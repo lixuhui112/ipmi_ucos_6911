@@ -28,7 +28,24 @@ History:
 #include <stdio.h>
 
 #define MAX_UCD9081_SENSOR_COUNT    8
-#define UCD9081_SLAVE_ADDR          0x65
+
+#define RAIL_VOL_R              3.3                     /* Voltage Reference */
+#define RAIL_VOL_DIV_UP_1       1.96
+#define RAIL_VOL_DIV_DN_1       1.96
+#define RAIL_VOL_DIV_UP_2       1.96
+#define RAIL_VOL_DIV_DN_2       1.96
+#define RAIL_VOL_DIV_UP_3       0
+#define RAIL_VOL_DIV_DN_3       0
+#define RAIL_VOL_DIV_UP_4       0
+#define RAIL_VOL_DIV_DN_4       0
+#define RAIL_VOL_DIV_UP_5       0
+#define RAIL_VOL_DIV_DN_5       0
+#define RAIL_VOL_DIV_UP_6       0
+#define RAIL_VOL_DIV_DN_6       0
+#define RAIL_VOL_DIV_UP_7       0
+#define RAIL_VOL_DIV_DN_7       0
+#define RAIL_VOL_DIV_UP_8       0
+#define RAIL_VOL_DIV_DN_8       0
 
 #define UCD9081_VOL_REFERENCE   2.50                    /* 参考电压值 */
 #define UCD9081_VOL_RAIL_1      1.00                    /* 监控的标准电压值 */
@@ -104,7 +121,7 @@ typedef struct ucd9081_rail_vol_tbl {
 	uint8_t rail_reg;   /* voltage register */
 } UCD9081_VOL_RAIL_TBL;
 
-#define RAW_2_VAL(v)            (v * 25 / 1024)         /* 寄存器电压转换 */
+#define RAW_2_VAL(v)            ((float)(v) * 25 / 1024)  /* 寄存器电压转换 */
 
 SDR_RECORD_FULL ucd9081_sr[MAX_UCD9081_SENSOR_COUNT];
 sensor_data_t ucd9081_sd[MAX_UCD9081_SENSOR_COUNT];
@@ -122,55 +139,67 @@ const IO_INT ucd9081_int =
 
 const UCD9081_VOL_RAIL_TBL ucd9081_vol_tbl[MAX_UCD9081_SENSOR_COUNT] =
 {
-    {
+    {   /* rail 0 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_1),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_1),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_1),
         .rail_reg = UCD9081_REG_RAIL_1,
     },
-    {
+    {   /* rail 1 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_2),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_2),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_2),
         .rail_reg = UCD9081_REG_RAIL_2,
     },
-    {
+    {   /* rail 2 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_3),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_3),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_3),
         .rail_reg = UCD9081_REG_RAIL_3,
     },
-    {
+    {   /* rail 3 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_4),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_4),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_4),
         .rail_reg = UCD9081_REG_RAIL_4,
     },
-    {
+    {   /* rail 4 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_5),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_5),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_5),
         .rail_reg = UCD9081_REG_RAIL_5,
     },
-    {
+    {   /* rail 5 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_6),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_6),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_6),
         .rail_reg = UCD9081_REG_RAIL_6,
     },
-    {
+    {   /* rail 6 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_7),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_7),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_7),
         .rail_reg = UCD9081_REG_RAIL_7,
     },
-    {
+    {   /* rail 7 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_8),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_8),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_8),
         .rail_reg = UCD9081_REG_RAIL_8,
     },
 };
+
+uint8_t ucd9081_raw2val(uint8_t ucd9081_id, uint16_t raw)
+{
+    float val = 0;
+
+    if (ucd9081_id < 4) {
+        val = ((float)(raw) * 33 / 1024);         /* 寄存器电压转换 */
+    } else {
+        val = ((float)(raw) * 33 / 1024) * ((RAIL_VOL_DIV_UP_1 + RAIL_VOL_DIV_DN_1) / RAIL_VOL_DIV_DN_1);
+    }
+    return (uint8_t)lround(val);
+}
 
 void ucd9081_int_handler(void *param)
 {
@@ -215,6 +244,10 @@ void ucd9081_scan_function(void *arg)
     uint8_t buffer[6];
 
     ucd9081_id = sd->local_sensor_id;
+    if (ucd9081_id >= MAX_UCD9081_SENSOR_COUNT) {
+        sd->unavailable = 1;
+        return;
+    }
 
     /* read voltage from ucd9081 */
     I2C_i2c1_slave_dev_set(&ucd9081_dev, ucd9081_vol_tbl[ucd9081_id].rail_reg, (uint8_t*)&buffer[0], 2);
@@ -227,7 +260,7 @@ void ucd9081_scan_function(void *arg)
         sd->unavailable = 0;
     }
 
-    sd->last_sensor_reading = RAW_2_VAL(buffer[0] << 8 | buffer[1]);
+    sd->last_sensor_reading = ucd9081_raw2val(ucd9081_id, ((buffer[0] & 0x3) << 8 | buffer[1]));
 
     sd->lower_non_critical_threshold = 0;
     sd->lower_critical_threshold = 0;

@@ -237,6 +237,11 @@ void adt7470_scan_function(void *arg)
     dev = id / MAX_ADT7470_SE_PER_DEV;
     id = id % MAX_ADT7470_SE_PER_DEV;
 
+    if (dev >= MAX_ADT7470_DEV || id >= MAX_ADT7470_SE_PER_DEV) {
+        sd->unavailable = 1;
+        return;
+    }
+
     I2C_i2c1_slave_dev_set(&adt7470_dev[dev], ADT7470_REG_TACH1 + (id * 2), (uint8_t*)&temp_val, 2);
     error = I2C_i2c1_master_read(&adt7470_dev[dev]);
     if (error != 0) {

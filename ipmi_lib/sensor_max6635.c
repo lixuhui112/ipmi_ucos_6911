@@ -85,7 +85,8 @@ void max6635_sett_function(void *arg);
 void max6635_over_handler(void *param);
 void max6635_alert_handler(void *param);
 
-const unsigned char max6635_i2c_addr[MAX_MAX6635_SENSOR_COUNT] = {0x48, 0x49};      /* 8bit address */
+const unsigned char max6635_i2c_addr[MAX_MAX6635_SENSOR_COUNT] =
+        {MAX6635_SLAVE_ADDR_1, MAX6635_SLAVE_ADDR_2};      /* 8bit address */
 
 SDR_RECORD_FULL max6635_sr[MAX_MAX6635_SENSOR_COUNT];
 sensor_data_t max6635_sd[MAX_MAX6635_SENSOR_COUNT];
@@ -240,7 +241,12 @@ void max6635_scan_function(void *arg)
     uint8_t temp_trd;
     uint8_t max6635_id = sd->local_sensor_id;
 
-    /* TODO:
+    if (max6635_id >= MAX_MAX6635_SENSOR_COUNT) {
+        sd->unavailable = 1;
+        return;
+    }
+
+    /*
      * read the temperature from the physical chip device
      */
     I2C_i2c1_slave_dev_set(&max6635_dev[max6635_id], MAX6635_REG_TEMP, (uint8_t*)&temp_val, 2);

@@ -25,37 +25,35 @@ static IO_INT *gpio_c_int_table[8];
 #ifdef IPMI_MODULES_GPIO_CPU_LED
 //*****************************************************************************
 //
-// Set the status LED on or off.
+// Set the status LED0 on or off.
 //
 //*****************************************************************************
-void IO_cpu_led_set(tBoolean bOn)
+void IO_led0_set(tBoolean bOn)
 {
     // Turn the LED on or off as requested.
-    GPIOPinWrite(GPIO_LED_PORT, GPIO_LED_PIN, bOn ? GPIO_LED_PIN : 0);
+    GPIOPinWrite(GPIO_LED0_PORT, GPIO_LED0_PIN, bOn ? GPIO_LED0_PIN : 0);
 }
 
 //*****************************************************************************
 //
-// LED Init
+// LED0 Init
 //
 //*****************************************************************************
-void IO_cpu_led_init(void)
+void IO_led0_init(void)
 {
     // Enable GPIO bank C to allow control of the LED.
-    SysCtlPeripheralEnable(GPIO_LED_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_LED0_PERIPH_BASE);
 
     // Configure Port for as an output for the status LED.
-    GPIOPinTypeGPIOOutput(GPIO_LED_PORT, GPIO_LED_PIN);
+    GPIOPinTypeGPIOOutput(GPIO_LED0_PORT, GPIO_LED0_PIN);
 
     // Initialize LED to ON (1)
-    GPIOPinWrite(GPIO_LED_PORT, GPIO_LED_PIN, 1);
+    GPIOPinWrite(GPIO_LED0_PORT, GPIO_LED0_PIN, 1);
 }
-#endif
-
 
 //*****************************************************************************
 //
-// Set the status LED on or off.
+// Set the status LED1 on or off.
 //
 //*****************************************************************************
 void IO_led1_set(tBoolean bOn)
@@ -66,7 +64,7 @@ void IO_led1_set(tBoolean bOn)
 
 //*****************************************************************************
 //
-// LED Init
+// LED1 Init
 //
 //*****************************************************************************
 void IO_led1_init(void)
@@ -80,6 +78,7 @@ void IO_led1_init(void)
     // Initialize LED to ON (1)
     GPIOPinWrite(GPIO_LED1_PORT, GPIO_LED1_PIN, 1);
 }
+#endif
 
 
 #ifdef IPMI_MODULES_GPIO_SOL_SEL
@@ -327,10 +326,10 @@ void IO_gpio_c_int_handler(void)
 void IO_init(void)
 {
 #ifdef IPMI_MODULES_GPIO_CPU_LED
-    IO_cpu_led_init();
+    IO_led0_init();
+    IO_led1_init();
 #endif
 
-    IO_led1_init();
 
 #ifdef IPMI_MODULES_GPIO_PRESENT
     IO_present_init();

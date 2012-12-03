@@ -134,13 +134,13 @@
 //
 // LED¹Ü½Å                                  PD1
 //
-#define GPIO_LED_PERIPH_BASE                SYSCTL_PERIPH_GPIOD
-#define GPIO_LED_PORT                       GPIO_PORTD_BASE
-#define GPIO_LED_PIN                        GPIO_PIN_1
-//                                          PD0
-#define GPIO_LED1_PERIPH_BASE               SYSCTL_PERIPH_GPIOD
-#define GPIO_LED1_PORT                      GPIO_PORTD_BASE
-#define GPIO_LED1_PIN                       GPIO_PIN_0
+#define GPIO_LED0_PERIPH_BASE               SYSCTL_PERIPH_GPIOD
+#define GPIO_LED0_PORT                      GPIO_PORTD_BASE
+#define GPIO_LED0_PIN                       GPIO_PIN_1
+//                                          PF3
+#define GPIO_LED1_PERIPH_BASE               SYSCTL_PERIPH_GPIOF
+#define GPIO_LED1_PORT                      GPIO_PORTF_BASE
+#define GPIO_LED1_PIN                       GPIO_PIN_3
 
 
 #endif

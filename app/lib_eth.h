@@ -1,22 +1,15 @@
 //*****************************************************************************
 //
-// lib_uart.h - UART routines for the IPMI application.
+// lib_eth.h - Ethernet routines for the IPMI application.
 //
 //*****************************************************************************
 
 #ifndef __LIB_ETH_H__
 #define __LIB_ETH_H__
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#include <inttypes.h>
 
-
-
-#ifdef __cplusplus
-}
-#endif
+void ETH_init(void);
 
 #endif  // __LIB_ETH_H__
 
