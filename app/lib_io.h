@@ -23,9 +23,10 @@ typedef struct IO_int_st {
 void IO_init(void);
 void IO_cpu_led_set(tBoolean bOn);
 void IO_sol_set(tBoolean bOn);
-int IO_sol_get(void);
+int  IO_sol_get(void);
 void IO_i2c_hotswap_set(tBoolean bOn);
-int IO_i2c_hotswap_get(void);
+int  IO_i2c_hotswap_get(void);
 void IO_gpio_int_register(IO_INT *io_int);
+int  IO_present_check(void);
 
 #endif // __LIB_IO_H__

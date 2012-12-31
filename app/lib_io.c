@@ -48,7 +48,7 @@ void IO_led0_init(void)
     GPIOPinTypeGPIOOutput(GPIO_LED0_PORT, GPIO_LED0_PIN);
 
     // Initialize LED to ON (1)
-    GPIOPinWrite(GPIO_LED0_PORT, GPIO_LED0_PIN, 1);
+    GPIOPinWrite(GPIO_LED0_PORT, GPIO_LED0_PIN, GPIO_LED0_PIN);
 }
 
 //*****************************************************************************
@@ -76,7 +76,7 @@ void IO_led1_init(void)
     GPIOPinTypeGPIOOutput(GPIO_LED1_PORT, GPIO_LED1_PIN);
 
     // Initialize LED to ON (1)
-    GPIOPinWrite(GPIO_LED1_PORT, GPIO_LED1_PIN, 1);
+    GPIOPinWrite(GPIO_LED1_PORT, GPIO_LED1_PIN, GPIO_LED1_PIN);
 }
 #endif
 
