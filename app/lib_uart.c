@@ -25,7 +25,7 @@
 // Define the ICMB(UART1) or DEBUG(UART0) TX/RX Buffer
 //
 //*****************************************************************************
-#define UART1_BUF_SIZE              0x80
+#define UART1_BUF_SIZE  0x80
 
 static unsigned char uart1_rx_buf[UART1_BUF_SIZE];
 static unsigned char uart1_tx_buf[UART1_BUF_SIZE];
@@ -344,7 +344,7 @@ void UART_uart1_init(void)
     UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 9600,
                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                          UART_CONFIG_PAR_NONE));
-    UARTStdioInit(1);
+    //UARTStdioInit(1);
 
     // Enable the UART interrupt.
     //UARTIntRegister(UART1_BASE, UART_uart1_int_handler);
@@ -356,6 +356,13 @@ void UART_uart1_init(void)
 
 
 #ifdef IPMI_MODULES_UART2_SOL
+#define UART2_BUF_SIZE  0x80
+static unsigned char uart2_rx_buf[UART2_BUF_SIZE];
+static unsigned char uart2_tx_buf[UART2_BUF_SIZE];
+static unsigned char uart2_rx_idx;
+static unsigned char uart2_tx_idx;
+static unsigned char uart2_rx_len;
+static unsigned char uart2_tx_len;
 //*****************************************************************************
 //
 // The UART2 interrupt handler.
@@ -377,9 +384,14 @@ void UART_uart2_int_handler(void)
     {
         // Read the next character from the UART2 and write it back to the UART1.
         ch = UARTCharGetNonBlocking(UART2_BASE);
-        while(UARTCharPutNonBlocking(UART1_BASE, ch) == false);
-        //if (ch == '\r')
-        //    while(UARTCharPutNonBlocking(UART1_BASE, '\n') == false);
+        uart2_rx_buf[uart2_rx_idx++] = (unsigned char)ch;
+        uart2_rx_idx = uart2_rx_idx % UART2_BUF_SIZE;
+        // TODO
+        // read UART2 uart2_rx_buf to SOL(Ethernet)
+        // and uart2_tx_buf from SOL to UART2
+
+        // just for loop test [[ CPU -> UART2 -> UART1 ]]
+        while (UARTCharPutNonBlocking(UART1_BASE, ch) == false);
     }
 }
 
