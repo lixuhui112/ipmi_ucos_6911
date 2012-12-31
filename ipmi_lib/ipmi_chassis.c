@@ -159,7 +159,7 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
 
         case CHASSIS_GET_POH_COUNTER:
             {
-                unsigned long poh;
+                uint32_t poh;
 
                 ipmi_common_get_poh(&poh);
 

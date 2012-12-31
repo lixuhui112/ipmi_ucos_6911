@@ -26,7 +26,7 @@ static OS_STK ipmi_task_stk[STK_SIZE];
 static OS_STK recv_task_stk[STK_SIZE];
 static OS_STK proc_task_stk[STK_SIZE];
 static OS_STK send_task_stk[STK_SIZE];
-
+static OS_STK period_task_stk[STK_SIZE];
 
 //*****************************************************************************
 //
@@ -89,7 +89,7 @@ void ipmi_put_free_ctx_entry(struct ipmi_ctx *ctx)
 // Defines Front Character Frame of IPMI Message
 //
 //*****************************************************************************
-uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE] = {0x00, 0xfe};
+uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE] = {0x0f, 0xf0, 0x5a};
 
 //*****************************************************************************
 //
@@ -397,6 +397,15 @@ void ipmi_cmd_send_task(void *args)
 #endif
 }
 
+void ipmi_period_task(void *args)
+{
+    //uint32_t poh;
+    //ipmi_common_get_poh(&poh);
+    //(void)poh;
+    ipmi_common_test_self();
+    OSTimeDlyHMSM(0, 1, 0, 0);
+}
+
 void ipmi_task_main(void *args)
 {
     //unsigned long led = 0;
@@ -420,6 +429,7 @@ void ipmi_task_main(void *args)
     OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
     OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
+    OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
 
     // ¶¨Ê±Æ÷
     led_start();
