@@ -541,7 +541,7 @@ extern unsigned long device_available;
 #include "ipmi_lib/ipmi_version.h"
 #include "ipmi_lib/ipmi_intf.h"
 #include "ipmi_lib/ipmi_common.h"
-#include "ipmi_lib/ipmi_cpld.h"
+#include "ipmi_lib/ipmi_logic.h"
 #include "ipmi_lib/ipmi_cmd.h"
 #include "ipmi_lib/ipmi_debug.h"
 #include "ipmi_lib/ipmi_cfg.h"
