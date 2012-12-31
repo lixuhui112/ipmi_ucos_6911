@@ -92,6 +92,9 @@ History:
 #define UCD9081_ERR_CODE_GOV    0x04                    /* overvoltage glitch detected */
 #define UCD9081_ERR_CODE_GUV    0x05                    /* undervoltage glitch detected */
 
+#define UCD9081_CTL_RESET       0x00
+#define UCD9081_CTL_SHUTDOWN    0xc0
+
 #define UCD9081_MIN             (0)                     /* 预设的公式原始参数 */
 #define UCD9081_MAX             (5)
 #define UCD9081_M               (1)
@@ -307,6 +310,15 @@ void ucd9081_shutdown(void *arg)
     /* TODO: 2012/9/29
      * Shutdown the ucd9081.
      */
+    uint8_t buffer[1] = {UCD9081_CTL_SHUTDOWN};
+    uint32_t error;
+
+    I2C_i2c1_slave_dev_set(&ucd9081_dev, UCD9081_REG_RESTART, (uint8_t*)&buffer[0], 1);
+    error = I2C_i2c1_master_write(&ucd9081_dev);
+
+    if (error) {
+        /* save error log */
+    }
 }
 
 void ucd9081_init_sensor_record(uint8_t i)

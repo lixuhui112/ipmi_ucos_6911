@@ -40,7 +40,6 @@ History:
 #define MAX6635_TEMP_LNC            0
 #define MAX6635_TEMP_HYST           2
 
-
 #define MAX6635_REG_TEMP            0x00    /* 16bit Temperature register (READ only)*/
 #define MAX6635_REG_CFG             0x01    /*  8bit Configuration-Byte register Power-on default = 0h. */
 #define MAX6635_REG_THYST           0x02    /* 16bit THYST register Power-On Default: THYST = 2°„C   (0100h) */
