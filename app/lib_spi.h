@@ -28,7 +28,7 @@ int SPI_spi1_read(char *buf, unsigned long *size);
 int SPI_spi1_write(char *buf, unsigned long size);
 int SPI_spi0_read(unsigned long regaddr, char *buf, unsigned long size);
 int SPI_spi0_write(unsigned long regaddr, char *buf, unsigned long size);
-void SPI_spi0_transfer(unsigned char *pucDataOut, unsigned long ulOutCount,
+void SPI_spi0_xfer(unsigned char *pucDataOut, unsigned long ulOutCount,
             unsigned char *pucDataIn, unsigned long ulInCount);
 
 

@@ -135,7 +135,7 @@ int main(void)
     BSP_init();
 
     // 板卡在位信号检测
-    Slot_Present_Check();
+    //Slot_Present_Check();
 
     // 板卡槽位号初始化
     Slot_Num_Init();

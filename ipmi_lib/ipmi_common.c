@@ -117,50 +117,56 @@ void ipmi_sensor_init(void)
 #endif
 }
 
-#if defined(IPMI_MODULES_SPI1_SSIF) && 0
+#if (defined(IPMI_MODULES_SPI0_CPLD) && 0)
 char ipmi_common_get_device_id(void)
 {
-    unsigned char devid = 0;
-    unsigned char regaddr[2] = {0x00, CPLD_DEVICE_ID_REG};
+    uint8_t devid = 0;
+    uint8_t *regaddr = (uint8_t*)LOGIC_2_R_FPGA(LOGIC_DEVICE_ID_REG);
 
-    return 0x01;
-    IPMI_CPLD_READ(&regaddr[0], (unsigned char*)&devid, 1);
+    IPMI_LOGIC_READ(regaddr, (uint8_t*)&devid);
 
     return devid;
 }
 
 char ipmi_common_get_device_revision(void)
 {
-    unsigned char devrev = 0;
-    unsigned char regaddr[2] = {0x00, CPLD_DEVICE_REV_REG};
+    uint8_t devrev = 0;
+    uint8_t *regaddr = (uint8_t*)LOGIC_2_R_FPGA(LOGIC_DEVICE_REV_REG);
 
-    IPMI_CPLD_READ(&regaddr[0], (unsigned char*)&devrev, 1);
+    IPMI_LOGIC_READ(regaddr, (uint8_t*)&devrev);
 
     return devrev;
 }
 
 char ipmi_common_get_product_id(void)
 {
-    unsigned char pdid = 0;
-    unsigned char regaddr[2] = {0x00, CPLD_PRODUCT_ID_REG};
+    uint8_t pdid = 0;
+    uint8_t *regaddr = (uint8_t*)LOGIC_2_R_FPGA(LOGIC_PRODUCT_ID_REG);
 
-    IPMI_CPLD_READ(&regaddr[0], (unsigned char*)&pdid, 1);
+    IPMI_LOGIC_READ(regaddr, (uint8_t*)&pdid);
 
     return pdid;
 }
 
-char ipmi_common_get_poh(unsigned long *poh)
+char ipmi_common_get_poh(uint32_t *poh)
 {
-    unsigned char regaddr[2] = {0x00, CPLD_POH_REG};
+    uint8_t *regaddr = (uint8_t*)LOGIC_2_R_FPGA(LOGIC_POH_REG);
 
-    IPMI_CPLD_READ(&regaddr[0], (unsigned char*)&poh, 4);
+    IPMI_LOGIC_READ(regaddr, (uint8_t*)&poh);
 
     return 0;
 }
 
-void ipmi_common_power_onoff(int on)
+void ipmi_common_power_onoff(uint8_t on)
 {
     return;
+}
+
+void ipmi_common_test_self(void)
+{
+    uint8_t buf[] = {0x5a, 0xa5, 0x5a};
+
+    SPI_spi0_xfer(buf, 3, 0, 0);
 }
 
 #else   // IPMI_MODULES_SPI1_SSIF
@@ -180,9 +186,9 @@ char ipmi_common_get_product_id(void)
     return 0x01;
 }
 
-char ipmi_common_get_poh(unsigned long *poh)
+char ipmi_common_get_poh(uint32_t *poh)
 {
-    unsigned long power_on_seconds;
+    uint32_t power_on_seconds;
 
     power_on_seconds = OSTimeGet() / SYSTICKHZ;
 
@@ -191,11 +197,14 @@ char ipmi_common_get_poh(unsigned long *poh)
     return 0;
 }
 
-void ipmi_common_power_onoff(int on)
+void ipmi_common_power_onoff(uint8_t on)
 {
     return;
 }
 
+void ipmi_common_test_self(void)
+{
+}
 #endif
 
 

@@ -33,8 +33,9 @@ int ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen);
 char ipmi_common_get_device_id(void);
 char ipmi_common_get_device_revision(void);
 char ipmi_common_get_product_id(void);
-char ipmi_common_get_poh(unsigned long *poh);
-void ipmi_common_power_onoff(int on);
+char ipmi_common_get_poh(uint32_t *poh);
+void ipmi_common_power_onoff(uint8_t on);
+void ipmi_common_test_self(void);
 
 #define IPMI_LED_ON             0x00
 #define IPMI_LED_SYS            0x01

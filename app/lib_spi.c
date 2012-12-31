@@ -286,6 +286,10 @@ int SPI_spi1_write(char *buf, unsigned long size)
 //
 //*****************************************************************************
 
+#if 0
+//
+// this dirver is use the interrupt to driven the ssi hardware
+//
 static SPI_DRIVER spi0_driver;
 
 //*****************************************************************************
@@ -441,7 +445,7 @@ void SPI_spi0_int_handler(void)
 // This will start an interrupt driven transfer to the SSI peripheral.
 //
 //*****************************************************************************
-void SPI_spi0_transfer(unsigned char *pucDataOut, unsigned long ulOutCount,
+void SPI_spi0_xfer(unsigned char *pucDataOut, unsigned long ulOutCount,
             unsigned char *pucDataIn, unsigned long ulInCount)
 {
     uint8_t err;
@@ -497,10 +501,71 @@ void SPI_spi0_transfer(unsigned char *pucDataOut, unsigned long ulOutCount,
 
     OSSemPost(spi0_driver.sem);
 }
+#endif
+
+//*****************************************************************************
+//
+// This will use library function driven transfer to the SSI peripheral.
+//
+//*****************************************************************************
+void SPI_spi0_xfer(unsigned char *pucDataOut, unsigned long ulOutCount,
+            unsigned char *pucDataIn, unsigned long ulInCount)
+{
+    unsigned long ulDataTx;
+    unsigned long ulDataRx;
+    unsigned long ulindex;
+
+    while(SSIDataGetNonBlocking(SSI0_BASE, &ulDataRx))
+    {
+    }
+
+    for(ulindex = 0; ulindex < ulOutCount; ulindex++)
+    {
+        //
+        // Send the data using the "blocking" put function.  This function
+        // will wait until there is room in the send FIFO before returning.
+        // This allows you to assure that all the data you send makes it into
+        // the send FIFO.
+        //
+        ulDataTx = *pucDataOut++;
+        SSIDataPut(SSI0_BASE, ulDataTx);
+    }
+
+    //
+    // Wait until SSI0 is done transferring all the data in the transmit FIFO.
+    //
+    while(!SSIBusy(SSI0_BASE))
+    {
+    }
+
+    for(ulindex = 0; ulindex < ulInCount; ulindex++)
+    {
+        //
+        // Give a clock to slaver and recive data from fifo_rx
+        //
+        SSIDataPut(SSI0_BASE, 0);
+
+        //
+        // Receive the data using the "blocking" Get function. This function
+        // will wait until there is data in the receive FIFO before returning.
+        //
+        SSIDataGet(SSI0_BASE, &ulDataRx);
+
+        //
+        // Since we are using 8-bit data, mask off the MSB.
+        //
+        ulDataRx &= 0x00FF;
+
+        //
+        // return the data that SSI0 received.
+        //
+        *pucDataIn++ = (unsigned char)ulDataRx;
+    }
+}
 
 void SPI_spi0_master_init(void)
 {
-    spi0_driver.sem = OSSemCreate(1);
+    //spi0_driver.sem = OSSemCreate(1);
 
     // The SSI0 peripheral must be enabled for use.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
@@ -512,7 +577,7 @@ void SPI_spi0_master_init(void)
     // Configure the pin muxing for SSI0 functions on port A2, A3, A4, and A5.
     // This step is not necessary if your part does not support pin muxing.
     GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-    //GPIOPinConfigure(GPIO_PA3_SSI0FSS);
+    GPIOPinConfigure(GPIO_PA3_SSI0FSS);
     GPIOPinConfigure(GPIO_PA4_SSI0RX);
     GPIOPinConfigure(GPIO_PA5_SSI0TX);
 
@@ -522,12 +587,11 @@ void SPI_spi0_master_init(void)
     //      PA4 - SSI0Rx
     //      PA3 - SSI0Fss
     //      PA2 - SSI0CLK
-    GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5 | GPIO_PIN_4 | /* GPIO_PIN_3 | */
-                   GPIO_PIN_2);
+    GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5 | GPIO_PIN_4 | GPIO_PIN_3 | GPIO_PIN_2);
 
     // Use GPIO function to SPIFss Pin
-    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
-    GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_3, GPIO_PIN_3);
+    //GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
+    //GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_3, GPIO_PIN_3);
 
     // Configure and enable the SSI port for SPI master mode.  Use SSI0,
     // system clock supply, idle clock level low and active low clock in
@@ -537,16 +601,6 @@ void SPI_spi0_master_init(void)
 
     // Enable the SSI0 module.
     SSIEnable(SSI0_BASE);
-}
-
-int SPI_spi0_read(unsigned long regaddr, char *buf, unsigned long size)
-{
-    return 0;
-}
-
-int SPI_spi0_write(unsigned long regaddr, char *buf, unsigned long size)
-{
-    return 0;
 }
 
 #endif

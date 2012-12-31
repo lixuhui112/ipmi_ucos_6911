@@ -22,7 +22,7 @@
 
 
 // IPMI帧开始标记字符
-#define IPMI_FRAME_CHAR_SIZE            2
+#define IPMI_FRAME_CHAR_SIZE            3
 #define IPMI_FRAME_CMD_READ             0x01
 #define IPMI_FRAME_CMD_WRITE            0x02
 #define IPMI_FRAME_CMD_STATE            0x03
@@ -45,8 +45,8 @@ extern uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE];
 #define IPMI_SSIF_WRITE(buf, size)          SPI_spi1_write(buf, size)
 
 // CPLD接口读写函数
-#define IPMI_CPLD_READ(regaddr, buf, size)  SPI_spi0_transfer(regaddr, 1, buf, size)
-#define IPMI_CPLD_WRITE(regaddr, buf, size) SPI_spi0_transfer(buf, size, 0, 0)
+#define IPMI_LOGIC_READ(raddr, buf)         SPI_spi0_xfer(raddr, 2, buf, 1)
+#define IPMI_LOGIC_WRITE(raddr, buf)        SPI_spi0_xfer(buf, 3, 0, 0)
 
 // IPMB接口读写函数
 #define IPMI_IPMB_READ(buf, size)           I2C_i2c0_ipmb_read(buf, size)

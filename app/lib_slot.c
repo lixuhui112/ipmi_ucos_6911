@@ -31,6 +31,7 @@ unsigned long g_slot_number;
 //*****************************************************************************
 unsigned long g_slot_type;
 
+#if 0
 //*****************************************************************************
 //
 // Init and Check Slot Present signal is Done
@@ -46,10 +47,14 @@ int Slot_Present_Check(void)
         // read sit_signal from cpld
 #if defined(BOARD_6911_FAN) || defined(BOARD_6911_POWER)
         present_signal = IO_present_check();
-#endif
+#else
+        {
+            unsigned char present = 0;
+            unsigned char *regaddr = LOGIC_2_R_FPGA(LOGIC_SITOK_REG);
 
-#if defined(BOARD_6911_SWITCH)
-        present_signal = SPI_spi0_read(CPLD_SITOK_REG);
+            IPMI_LOGIC_READ(regaddr, (unsigned char*)&present);
+            present_signal = present;
+        }
 #endif
 
         if (present_signal)
@@ -68,6 +73,7 @@ int Slot_Present_Check(void)
     }
     return 0;
 }
+#endif
 
 //*****************************************************************************
 //
