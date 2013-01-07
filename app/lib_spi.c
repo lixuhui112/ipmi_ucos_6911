@@ -14,12 +14,13 @@
 #include "ipmi_lib/ipmi_intf.h"
 #include "app/lib_gpio.h"
 #include "app/lib_spi.h"
+#include "app/lib_io.h"
 #include "app/lib_common.h"
 #include "ucos_ii.h"
+#include "third_party/ustdlib.h"
 
 #ifdef IPMI_MODULES_SPI1_SSIF
 #define SPI_BUF_SIZE            0x80
-
 static unsigned char spi_rx_buf[SPI_BUF_SIZE];
 static unsigned char spi_tx_buf[SPI_BUF_SIZE];
 static unsigned char spi_rx_idx;
@@ -32,18 +33,21 @@ static unsigned long spi_rx_timestamp;
 //
 // The spi1 slaver interrupt handler.
 //
-// WRITE:   [RX]00 FE 01 20 01 02 03 04 ...
-// READ:    [RX]00 FE 02 [TX] 20 01 02 03 04 ...
-// STATE:   [RX]00 FE 03 [TX] 20
+// CPU WRITE:   [RX]0f f0 5a 01 20 01 02 03 04 ...
+// CPU READ:    [RX]0f f0 5a 02 [TX] 20 01 02 03 04 ...
+// CPU STATE:   [RX]0f f0 5a 03 [TX] 20
 //
 //*****************************************************************************
 void SPI_spi1_int_handler(void)
 {
+    unsigned char i;
     unsigned long status;
     unsigned long data;
     static unsigned char spi1_frame = 0;
     static unsigned char spi1_op = 0;
     static unsigned char spi1_size = 0;
+    //static unsigned char onoff = 0;
+    char cntbuf[16];
 
     status = SSIIntStatus(SSI1_BASE, true);        // 获取中断状态
     if (!status)
@@ -59,8 +63,16 @@ void SPI_spi1_int_handler(void)
         spi1_frame = 0;
     }
 
+    // for test interrupt use led
+    //onoff = ~onoff;
+    //IO_led0_set(onoff);
+
     // save the recvie frame time stamp
     spi_rx_timestamp = OSTimeGet();
+
+    // for debug interrupt status
+    //usprintf(cntbuf, "[%02x] ", status);
+    //DEBUG_UARTSend(cntbuf);
 
     switch (status)
     {
@@ -71,6 +83,10 @@ void SPI_spi1_int_handler(void)
             {
                 if (SSIDataGetNonBlocking(SSI1_BASE, &data))
                 {
+                    // for debug receive buffer
+                    //usprintf(cntbuf, "%02x ", data);
+                    //DEBUG_UARTSend(cntbuf);
+
                     // 检测前导码
                     if (spi1_frame < IPMI_FRAME_CHAR_SIZE)
                     {
@@ -88,19 +104,24 @@ void SPI_spi1_int_handler(void)
                     // SPI命令
                     else if (spi1_frame == IPMI_FRAME_CHAR_SIZE)
                     {
+                        //DEBUG_UARTSend("#");
+
                         if (IPMI_FRAME_CMD_READ == (unsigned char)data)
                         {
                             spi1_op = IPMI_FRAME_CMD_READ;
+                            SSIIntDisable(SSI1_BASE, SSI_RXOR|SSI_RXFF|SSI_RXTO);
                             SSIIntEnable(SSI1_BASE, SSI_TXFF);
                         }
                         else if (IPMI_FRAME_CMD_WRITE == (unsigned char)data)
                         {
                             spi1_op = IPMI_FRAME_CMD_WRITE;
-                            //SSIIntEnable(SSI1_BASE, SSI_TXFF);
+                            spi1_frame++;
                         }
                         else if (IPMI_FRAME_CMD_STATE == (unsigned char)data)
                         {
                             spi1_op = IPMI_FRAME_CMD_STATE;
+                            SSIIntDisable(SSI1_BASE, SSI_RXOR|SSI_RXFF|SSI_RXTO);
+                            SSIIntEnable(SSI1_BASE, SSI_TXFF);
                         }
                         else
                         {
@@ -114,6 +135,8 @@ void SPI_spi1_int_handler(void)
                     // 命令: 写入数据
                     else if (spi1_op == IPMI_FRAME_CMD_WRITE)
                     {
+                        //DEBUG_UARTSend("$");
+
                         if (spi1_size == 0)
                         {
                             spi1_size = (unsigned char)data;
@@ -131,25 +154,34 @@ void SPI_spi1_int_handler(void)
 
                         if (spi_rx_idx == spi1_size)
                         {
+                            //DEBUG_UARTSend("%");
+
                             spi_rx_len = spi_rx_idx;
                             ipmi_intf_recv_post(IPMI_INTF_SSIF);
+
+                            spi1_op = 0;
+                            spi1_frame = 0;
                         }
                     }
+                    break;
+                }
+                else
+                {
                     break;
                 }
             }
             break;
 
         case SSI_TXFF:
+            //DEBUG_UARTSend("^");
+
             // 命令: 获取状态
             if (spi1_op == IPMI_FRAME_CMD_STATE)
             {
-                if (spi_tx_len == 0)
-                    SSIDataPutNonBlocking(SSI1_BASE, 0);
-                else
-                    SSIDataPutNonBlocking(SSI1_BASE, spi_tx_len);
+                SSIDataPutNonBlocking(SSI1_BASE, spi_tx_len);
 
                 spi1_op = 0;
+                spi1_frame = 0;
                 SSIIntDisable(SSI1_BASE, SSI_TXFF);
                 SSIIntEnable(SSI1_BASE, SSI_RXFF|SSI_RXTO|SSI_RXOR);
             }
@@ -157,18 +189,23 @@ void SPI_spi1_int_handler(void)
             // 命令: 读取数据
             else if (spi1_op == IPMI_FRAME_CMD_READ)
             {
-                if (spi_tx_idx < spi_tx_len)    // 正在发送数据
+                for (i = 0; i < 4; i++)
                 {
-                    SSIDataPutNonBlocking(SSI1_BASE, (unsigned long)spi_tx_buf[spi_tx_idx++]);
-                    if (spi_tx_idx == spi_tx_len)
+                    if (spi_tx_idx < spi_tx_len)    // 正在发送数据
                     {
-                        spi_tx_idx = 0;
-                        spi_tx_len = 0;
+                        data = (unsigned long)spi_tx_buf[spi_tx_idx];
+                        SSIDataPutNonBlocking(SSI1_BASE, data);
+                        spi_tx_idx++;
                     }
                 }
-                else                            // 发送完成
+
+                if (spi_tx_idx == spi_tx_len)        // 发送完成
                 {
+                    spi_tx_idx = 0;
+                    spi_tx_len = 0;
+
                     spi1_op = 0;
+                    spi1_frame = 0;
                     SSIDataPutNonBlocking(SSI1_BASE, 0);
                     SSIIntDisable(SSI1_BASE, SSI_TXFF);
                     SSIIntEnable(SSI1_BASE, SSI_RXFF|SSI_RXTO|SSI_RXOR);
@@ -178,6 +215,7 @@ void SPI_spi1_int_handler(void)
             else                                // 错误的发送状态
             {
                 spi1_op = 0;
+                spi1_frame = 0;
                 SSIDataPutNonBlocking(SSI1_BASE, 0);
                 SSIIntDisable(SSI1_BASE, SSI_TXFF);
                 SSIIntEnable(SSI1_BASE, SSI_RXFF|SSI_RXTO|SSI_RXOR);
@@ -224,7 +262,7 @@ void SPI_spi1_slaver_init(void)
     // Configure and enable the SSI port for SPI master mode.  Use SSI1,
     // system clock supply, idle clock level low and active low clock in
     // freescale SPI mode, master mode, 1MHz SSI frequency, and 8-bit data.
-    SSIConfigSetExpClk(SSI1_BASE, SysCtlClockGet(), SSI_FRF_MOTO_MODE_0,
+    SSIConfigSetExpClk(SSI1_BASE, SysCtlClockGet(), SSI_FRF_MOTO_MODE_2,
                        SSI_MODE_SLAVE, 1000000, 8);
 
     // Enable the SSI1 module.
@@ -234,7 +272,7 @@ void SPI_spi1_slaver_init(void)
     while (SSIDataGetNonBlocking(SSI1_BASE, &tmpbuf)) {}
 
     // Register SPI Int Handler
-    SSIIntRegister(SSI1_BASE, SPI_spi1_int_handler);
+    //SSIIntRegister(SSI1_BASE, SPI_spi1_int_handler);
 
     // Enable the SSI interrupt.
     IntEnable(INT_SSI1);

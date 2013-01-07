@@ -335,7 +335,7 @@ UARTStdioInit(unsigned long ulPortNum)
     // Pass this call on to the version of the function allowing the baud rate
     // to be specified.
     //
-    UARTStdioInitExpClk(ulPortNum, 9600);
+    UARTStdioInitExpClk(ulPortNum, 115200);
 }
 
 //*****************************************************************************

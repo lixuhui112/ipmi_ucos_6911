@@ -166,6 +166,7 @@
           <name>CCDefines</name>
           <state>ewarm</state>
           <state>PART_LM3S6911</state>
+          <state>BOARD_6911_SWITCH</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -1786,9 +1787,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\app\lib_io.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\app\lib_slot.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\app\lib_spi.c</name>

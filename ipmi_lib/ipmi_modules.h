@@ -14,17 +14,17 @@
 //
 // 定义板卡类型
 //
-#define BOARD_6911_FAN
-#undef  BOARD_6911_FAN
+//#define BOARD_6911_FAN
+//#undef  BOARD_6911_FAN
 
-#define BOARD_6911_POWER
-#undef  BOARD_6911_POWER
+//#define BOARD_6911_POWER
+//#undef  BOARD_6911_POWER
 
-#define BOARD_6911_SWITCH
+//#define BOARD_6911_SWITCH
 //#undef  BOARD_6911_SWITCH
 
-#define BOARD_6911_FABRIC
-#undef  BOARD_6911_FABRIC
+//#define BOARD_6911_FABRIC
+//#undef  BOARD_6911_FABRIC
 
 #if !defined(BOARD_6911_FAN) && !defined(BOARD_6911_POWER) && !defined(BOARD_6911_SWITCH)  && !defined(BOARD_6911_FABRIC)
 #error Must define a ARM BOARD
@@ -51,6 +51,7 @@
 #define IPMI_CHIP_UCD9081               // 电压监控传感器
 #define IPMI_CHIP_AT24CXX               // EEPROM存储器
 #define IPMI_CHIP_PCF8563               // 实时时钟芯片
+#define IPMI_CHIP_LOGIC                 // 系统逻辑芯片
 #define IPMI_CHIP_MC_LOCATOR            // 板卡列表
 #endif
 
@@ -59,6 +60,7 @@
 #define IPMI_CHIP_UCD9081               // 电压监控传感器
 #define IPMI_CHIP_AT24CXX               // EEPROM存储器
 #define IPMI_CHIP_PCF8563               // 实时时钟芯片
+#define IPMI_CHIP_LOGIC                 // 系统逻辑芯片
 #define IPMI_CHIP_MC_LOCATOR            // 板卡列表
 #endif
 
@@ -71,7 +73,11 @@
 #define IPMI_MODULES_UART0_DEBUG
 #define IPMI_MODULES_GPIO_CPU_LED
 #define IPMI_MODULES_GPIO_PRESENT
+#define IPMI_MODULES_GPIO_SLOT_ADDR
+#define IPMI_MODULES_GPIO_BOARD_TYPE
 #define IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL
+#define IPMI_MODULES_GPIO_WATCHDOG
+#define IPMI_MODULES_GPIO_FULL_SPEED
 #endif
 
 #ifdef  BOARD_6911_POWER
@@ -80,10 +86,13 @@
 #define IPMI_MODULES_UART0_DEBUG
 #define IPMI_MODULES_GPIO_CPU_LED
 #define IPMI_MODULES_GPIO_PRESENT
-#define IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL
+#define IPMI_MODULES_GPIO_SLOT_ADDR
+#define IPMI_MODULES_GPIO_BOARD_TYPE
+#define IPMI_MODULES_GPIO_GOOD_FAB
+#define IPMI_MODULES_GPIO_WATCHDOG
 #endif
 
-#ifdef  BOARD_6911_SWITCH
+#if (defined(BOARD_6911_SWITCH) || defined(BOARD_6911_FABRIC))
 #define IPMI_MODULES_I2C0_IPMB
 #define IPMI_MODULES_I2C1_HARD_PMB
 #define IPMI_MODULES_SPI0_CPLD
@@ -95,9 +104,12 @@
 #define IPMI_MODULES_GPIO_CPU_LED
 #define IPMI_MODULES_GPIO_SOL_SEL
 #define IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL
+#define IPMI_MODULES_GPIO_SLOT_ADDR
+#define IPMI_MODULES_GPIO_WATCHDOG
 #define IPMI_MODULES_SESSION
 #define IPMI_MODULES_PAYLOAD
 #define IPMI_MODULES_SOL
+#define IPMI_MODULES_CPU_INT_ALARM
 #endif
 
 #define IPMI_DEV_CHASSIS        1

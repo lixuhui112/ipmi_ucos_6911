@@ -29,6 +29,8 @@ History:
 #include <string.h>
 #include <stdio.h>
 
+#ifdef IPMI_CHIP_MAX6635
+
 #define MAX_MAX6635_SENSOR_COUNT    2
 #define MAX6635_TEMP_MIN            -55
 #define MAX6635_TEMP_MAX            150
@@ -480,4 +482,5 @@ void max6635_init(void)
     }
 }
 
+#endif  // IPMI_CHIP_MAX6635
 

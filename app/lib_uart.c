@@ -138,7 +138,7 @@ void UART_uart0_init(void)
                          UART_CONFIG_PAR_NONE));
 
     // Initialize the UART for console I/O. (DEBUG)
-    UARTStdioInit(0);
+    //UARTStdioInit(0);
 
     // Enable the UART interrupt.
     UARTIntRegister(UART0_BASE, UART_uart0_int_handler);
@@ -341,10 +341,10 @@ void UART_uart1_init(void)
     GPIOPinTypeUART(GPIO_PORTD_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
     // Configure the UART1 for 9,600, 8-N-1 operation.
-    UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 9600,
+    UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 115200,
                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                          UART_CONFIG_PAR_NONE));
-    //UARTStdioInit(1);
+    UARTStdioInit(1);
 
     // Enable the UART interrupt.
     //UARTIntRegister(UART1_BASE, UART_uart1_int_handler);
@@ -437,6 +437,25 @@ int UART_uart2_write(char *buf, unsigned long size)
 #endif
 
 
+#define DEBUG_UART_PORT UART1_BASE
+//*****************************************************************************
+//
+// Send a string to the UART.
+//
+//*****************************************************************************
+void DEBUG_UARTSend(const unsigned char *pucBuffer)
+{
+    //
+    // Loop while there are more characters to send.
+    //
+    while (*pucBuffer)
+    {
+        //
+        // Write the next character to the UART.
+        //
+        UARTCharPutNonBlocking(DEBUG_UART_PORT, *pucBuffer++);
+    }
+}
 
 
 //*****************************************************************************

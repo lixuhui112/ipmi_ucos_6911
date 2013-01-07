@@ -20,16 +20,20 @@ History:
 
 ******************************************************************************/
 
+
 #include "ipmi_lib/ipmi.h"
+#include "ipmi_lib/ipmi_cfg.h"
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_INA230_COUNT        3                       /* 拆分成3个传感器，电压、电流、功率 */
+#ifdef IPMI_CHIP_INA230
+
+#define MAX_INA230_DEV          2                       /* 2个芯片，每个拆分成3个传感器，电压、电流、功率 */
+#define MAX_INA230_READER       3
+#define MAX_INA230_COUNT        (MAX_INA230_DEV*MAX_INA230_READER)
 #define INA230_ID_VOL           0
 #define INA230_ID_CUR           1
 #define INA230_ID_POW           2
-
-#define INA230_SLAVE_ADDR       0x00
 
 #define INA230_REG_SIZE         0x02                    /* 2字节，16bit寄存器 */
 
@@ -118,12 +122,12 @@ History:
 
 SDR_RECORD_FULL ina230_sr[MAX_INA230_COUNT];
 sensor_data_t ina230_sd[MAX_INA230_COUNT];
-I2C_DEVICE ina230_dev;
+I2C_DEVICE ina230_dev[2];
 
 const SENSOR_FORMULA ina230_formula[MAX_INA230_COUNT] =
 {
     {
-        .sensor_id  = "ina230-vol",
+        .sensor_id  = "ina230-1-vol",
         .type       = SENSOR_TYPE_VOLTAGE,
         .unit       = SENSOR_UNIT_VOLTS,
         .vmin       = INA230_VOL_MIN,
@@ -134,7 +138,7 @@ const SENSOR_FORMULA ina230_formula[MAX_INA230_COUNT] =
         .K2         = INA230_VOL_K2,
     },
     {
-        .sensor_id  = "ina230-cur",
+        .sensor_id  = "ina230-1-cur",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_AMPS,
         .vmin       = INA230_CUR_MIN,
@@ -145,7 +149,40 @@ const SENSOR_FORMULA ina230_formula[MAX_INA230_COUNT] =
         .K2         = INA230_CUR_K2,
     },
     {
-        .sensor_id  = "ina230-pow",
+        .sensor_id  = "ina230-1-pow",
+        .type       = SENSOR_TYPE_CURRENT,
+        .unit       = SENSOR_UNIT_WATTS,
+        .vmin       = INA230_POW_MIN,
+        .vmax       = INA230_POW_MAX,
+        .M          = INA230_POW_M,
+        .B          = INA230_POW_B,
+        .K1         = INA230_POW_K1,
+        .K2         = INA230_POW_K2,
+    },
+    {
+        .sensor_id  = "ina230-2-vol",
+        .type       = SENSOR_TYPE_VOLTAGE,
+        .unit       = SENSOR_UNIT_VOLTS,
+        .vmin       = INA230_VOL_MIN,
+        .vmax       = INA230_VOL_MAX,
+        .M          = INA230_VOL_M,
+        .B          = INA230_VOL_B,
+        .K1         = INA230_VOL_K1,
+        .K2         = INA230_VOL_K2,
+    },
+    {
+        .sensor_id  = "ina230-2-cur",
+        .type       = SENSOR_TYPE_CURRENT,
+        .unit       = SENSOR_UNIT_AMPS,
+        .vmin       = INA230_CUR_MIN,
+        .vmax       = INA230_CUR_MAX,
+        .M          = INA230_CUR_M,
+        .B          = INA230_CUR_B,
+        .K1         = INA230_CUR_K1,
+        .K2         = INA230_CUR_K2,
+    },
+    {
+        .sensor_id  = "ina230-2-pow",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_WATTS,
         .vmin       = INA230_POW_MIN,
@@ -160,39 +197,43 @@ const SENSOR_FORMULA ina230_formula[MAX_INA230_COUNT] =
 
 void ina230_init_chip(void)
 {
-    I2C_i2c1_slave_dev_init(&ina230_dev, INA230_SLAVE_ADDR, 1);
+    I2C_i2c1_slave_dev_init(&ina230_dev[0], INA230_SLAVE_ADDR_1, 1);
+    I2C_i2c1_slave_dev_init(&ina230_dev[1], INA230_SLAVE_ADDR_2, 1);
 }
 
 void ina230_scan_function(void *arg)
 {
     sensor_data_t *sd = (sensor_data_t *)arg;
-    uint8_t ina230_id;
+    uint8_t dev, id;
     uint32_t error = 0;
-    //uint16_t rvalue;
+    uint16_t rvalue;
     float value;
 
-    ina230_id = sd->local_sensor_id;
+    dev = sd->local_sensor_id / MAX_INA230_DEV;
+    id = sd->local_sensor_id % MAX_INA230_DEV;
 
     /* read voltage, current, power from ina230 */
-    // For test!
-    switch (ina230_id)
+    switch (id)
     {
         case INA230_ID_VOL:
-            //I2C_i2c0_slave_dev_set(&ina230_dev, INA230_REG_BUS_VOL, (uint8_t*)&rvalue, 2);
-            //error = I2C_i2c0_master_read(&ina230_dev);
-            value = RAW_2_VBUS_VAL(0x2570);     // 11.98V
+            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_BUS_VOL, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c0_master_read(&ina230_dev[dev]);
+            value = RAW_2_VBUS_VAL(rvalue);
+            //value = RAW_2_VBUS_VAL(0x2570);     // 11.98V
             break;
 
         case INA230_ID_CUR:
-            //I2C_i2c0_slave_dev_set(&ina230_dev, INA230_REG_CURRENT, (uint8_t*)&rvalue, 2);
-            //error = I2C_i2c0_master_read(&ina230_dev);
-            value = RAW_2_CUR_VAL(0x2710);      // 10A
+            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_CURRENT, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c0_master_read(&ina230_dev[dev]);
+            value = RAW_2_CUR_VAL(rvalue);
+            //value = RAW_2_CUR_VAL(0x2710);      // 10A
             break;
 
         case INA230_ID_POW:
-            //I2C_i2c0_slave_dev_set(&ina230_dev, INA230_REG_POWER, (uint8_t*)&rvalue, 2);
-            //error = I2C_i2c0_master_read(&ina230_dev);
-            value = RAW_2_POW_VAL(0x12b8);      // 119.8W
+            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_POWER, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c0_master_read(&ina230_dev[dev]);
+            value = RAW_2_POW_VAL(rvalue);
+            //value = RAW_2_POW_VAL(0x12b8);      // 119.8W
             break;
 
         default:
@@ -207,10 +248,10 @@ void ina230_scan_function(void *arg)
     }
 
     sd->last_sensor_reading = (uint8_t)(lrint(SENSOR_VAL2RAW(value,
-                                        ina230_formula[ina230_id].M,
-                                        ina230_formula[ina230_id].B,
-                                        ina230_formula[ina230_id].K1,
-                                        ina230_formula[ina230_id].K2)));
+                                        ina230_formula[sd->local_sensor_id].M,
+                                        ina230_formula[sd->local_sensor_id].B,
+                                        ina230_formula[sd->local_sensor_id].K1,
+                                        ina230_formula[sd->local_sensor_id].K2)));
 
     sd->lower_non_critical_threshold = 0;
     sd->lower_critical_threshold = 0;
@@ -417,4 +458,5 @@ void ina230_init(void)
     }
 }
 
+#endif  // IPMI_CHIP_INA230
 

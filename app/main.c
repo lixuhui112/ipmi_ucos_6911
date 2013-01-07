@@ -123,7 +123,7 @@ void BSP_init(void)
     I2C_init();
 
     // Initialize the Ethernet Hardware.    (LAN)
-    ETH_init();
+    //ETH_init();
 }
 
 int main(void)
@@ -133,21 +133,6 @@ int main(void)
 
     // 芯片外设初始化
     BSP_init();
-
-    // 板卡在位信号检测
-    //Slot_Present_Check();
-
-    // 板卡槽位号初始化
-    Slot_Num_Init();
-
-    // 板卡类型初始化
-    Slot_Type_Init();
-
-    // 板卡热插拔芯片打开
-    Slot_HotSwap_Open();
-
-    // 板卡主芯片供电打开
-    Slot_Power_Open();
 
     // IPMI主任务开始运行
     ipmi_main_start();

@@ -22,10 +22,13 @@ History:
 
 
 #include "ipmi_lib/ipmi.h"
+#include "ipmi_lib/ipmi_cfg.h"
 #include "app/lib_common.h"
 #include "app/lib_i2c.h"
 #include <string.h>
 #include <stdio.h>
+
+#ifdef IPMI_CHIP_AT24CXX
 
 #define MAX_AT24XX_COUNT            1
 
@@ -34,7 +37,7 @@ History:
 #define AT24C64_PAGE_NUM            256     /* 总共256个页面 */
 #define AT24C64_ADDR_SIZE           2
 
-const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {AT24C_SLAVE_ADDR};   /* 8bit address */
+const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {AT24CXX_SLAVE_ADDR};   /* 8bit address */
 
 I2C_DEVICE at24xx_dev[MAX_AT24XX_COUNT];
 
@@ -74,4 +77,5 @@ uint8_t at24xx_write(uint32_t addr, uint8_t *buffer, uint32_t size)
     return 0;
 }
 
+#endif  // IPMI_CHIP_AT24CXX
 

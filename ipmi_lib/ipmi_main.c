@@ -260,7 +260,7 @@ void ipmi_cmd_proc_task(void *args)
 
         DEBUG("rs_sa=0x%x\r\n", ctx_cmd->req.msg.rs_sa);
         DEBUG("netfn=0x%x\r\n", ctx_cmd->req.msg.netfn);
-        DEBUG("lun=0x%x\r\n", ctx_cmd->req.msg.rs_lun);
+        DEBUG("lun=0x%x\r\n", ctx_cmd->req.msg.lun);
         DEBUG("checksum=0x%x\r\n", ctx_cmd->req.msg.checksum1);
         DEBUG("rq_sa=0x%x\r\n", ctx_cmd->req.msg.rq_sa);
         DEBUG("rq_seq=0x%x\r\n", ctx_cmd->req.msg.rq_seq);
@@ -429,7 +429,7 @@ void ipmi_task_main(void *args)
     OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
     OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
-    OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
+    //OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
 
     // ¶¨Ê±Æ÷
     led_start();

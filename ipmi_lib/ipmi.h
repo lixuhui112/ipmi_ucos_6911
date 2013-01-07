@@ -337,11 +337,11 @@ struct _ipmi_req_cmd {
     uint8_t data_len;
     uint8_t rs_sa;
 #ifdef __LITTLE_ENDIAN__
-    uint8_t netfn:6,
-            rs_lun:2;
-#else
     uint8_t lun:2,
             netfn:6;
+#else
+    uint8_t netfn:6,
+            lun:2;
 #endif
     uint8_t checksum1;
     uint8_t rq_sa;

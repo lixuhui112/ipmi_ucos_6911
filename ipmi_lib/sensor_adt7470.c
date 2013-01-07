@@ -21,12 +21,13 @@ History:
                 sensor list
 ******************************************************************************/
 
-
 #include "ipmi_lib/ipmi.h"
 #include "app/lib_common.h"
 #include "app/lib_i2c.h"
 #include <string.h>
 #include <stdio.h>
+
+#ifdef IPMI_CHIP_ADT7470
 
 #define MAX_ADT7470_COUNT           8       /* 传感器数量       */
 #define MAX_ADT7470_DEV             2       /* 设备数量         */
@@ -167,7 +168,7 @@ History:
 #define PWM_RAW_2_VAL(pct)          ((float)pct / 0.39)
 
 
-const unsigned char adt7470_i2c_addr[MAX_ADT7470_DEV] = {0x2c, 0x2f};
+const unsigned char adt7470_i2c_addr[MAX_ADT7470_DEV] = {ADT7470_SLAVE_ADDR_1, ADT7470_SLAVE_ADDR_2};
 
 I2C_DEVICE adt7470_dev[MAX_ADT7470_DEV];
 SDR_RECORD_FULL adt7470_sr[MAX_ADT7470_COUNT];
@@ -449,5 +450,5 @@ void adt7470_init(void)
     }
 }
 
-
+#endif  // IPMI_CHIP_ADT7470
 

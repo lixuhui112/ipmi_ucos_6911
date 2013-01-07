@@ -20,12 +20,15 @@ History:
                 sensor list
 ******************************************************************************/
 
+
 #include "ipmi_lib/ipmi.h"
 #include "app/lib_i2c.h"
 #include "app/lib_gpio.h"
 #include "app/lib_io.h"
 #include <string.h>
 #include <stdio.h>
+
+#ifdef IPMI_CHIP_UCD9081
 
 #define MAX_UCD9081_SENSOR_COUNT    8
 
@@ -495,5 +498,5 @@ void ucd9081_init(void)
     }
 }
 
-
+#endif  // IPMI_CHIP_UCD9081
 

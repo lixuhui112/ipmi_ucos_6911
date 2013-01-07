@@ -13,7 +13,7 @@
 #include "app/lib_i2c.h"
 
 struct ipmi_chassis_capabilities_rsp {
-	uint8_t capabilities_flag;                      // 板卡功能         __LITTLE_ENDIAN__
+	uint8_t capabilities_flag;                      // 板卡功能
 	uint8_t chassis_fru_dev_addr;                   // IPMB地址，7位地址，0位不用
 	uint8_t sdr_dev_addr;                           // SDR设备地址
 	uint8_t sel_dev_addr;                           // SEL设备地址
@@ -81,8 +81,8 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
 
                 capa_rsp->capabilities_flag = 0;
                 capa_rsp->chassis_fru_dev_addr = I2C_i2c0_ipmb_self_addr_get();
-                capa_rsp->sdr_dev_addr = AT24C_SLAVE_ADDR;
-                capa_rsp->sel_dev_addr = AT24C_SLAVE_ADDR;
+                capa_rsp->sdr_dev_addr = AT24CXX_SLAVE_ADDR;
+                capa_rsp->sel_dev_addr = AT24CXX_SLAVE_ADDR;
                 capa_rsp->sys_dev_addr = 0;
                 capa_rsp->bridge_dev_addr = 0;
             }
