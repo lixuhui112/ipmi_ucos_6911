@@ -14,7 +14,7 @@
 #include "ipmi_lib/ipmi_modules.h"
 #include "app/lib_gpio.h"
 #include "app/lib_io.h"
-
+#include "app/lib_common.h"
 
 static uint32_t gpio_a_int_mask;
 static uint32_t gpio_b_int_mask;
@@ -23,8 +23,12 @@ static IO_INT *gpio_a_int_table[8];
 static IO_INT *gpio_b_int_table[8];
 static IO_INT *gpio_c_int_table[8];
 
+extern uint8_t g_slot_addr;
+extern uint8_t g_board_type;
+extern uint8_t g_present_ok;
 
-#ifdef IPMI_MODULES_GPIO_CPU_LED
+
+#if (defined(IPMI_MODULES_GPIO_CPU_LED))
 //*****************************************************************************
 // Set the status LED0 on or off.
 //*****************************************************************************
@@ -75,13 +79,13 @@ void IO_led1_init(void)
 #endif
 
 
-#ifdef IPMI_MODULES_GPIO_SOL_SEL
 //*****************************************************************************
 // Set the status SOL_SEL on or off.
 //*****************************************************************************
+#if (defined(IPMI_MODULES_GPIO_SOL_SEL))
 void IO_sol_set(tBoolean bOn)
 {
-    // Turn the LED on or off as requested.
+    // Turn the SOL on or off as requested.
     GPIOPinWrite(GPIO_SOL_UART2_SEL_PORT, GPIO_SOL_UART2_SEL_PIN, bOn ? GPIO_SOL_UART2_SEL_PIN : 0);
 }
 
@@ -108,22 +112,17 @@ uint8_t IO_sol_get(void)
 //*****************************************************************************
 void IO_sol_init(void)
 {
-    // Enable GPIO bank to allow control of the SOL.
     SysCtlPeripheralEnable(GPIO_SOL_UART2_PERIPH_BASE);
-
-    // Configure Port for as an output for the status SOL.
     GPIOPinTypeGPIOOutput(GPIO_SOL_UART2_SEL_PORT, GPIO_SOL_UART2_SEL_PIN);
-
-    // Initialize SOL to OFF (0)
     GPIOPinWrite(GPIO_SOL_UART2_SEL_PORT, GPIO_SOL_UART2_SEL_PIN, 0);
 }
-#endif
+#endif  //IPMI_MODULES_GPIO_SOL_SEL
 
 
-#ifdef IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL
 //*****************************************************************************
 // Set the status I2C_HOTSWAP on or off.
 //*****************************************************************************
+#if (defined(IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL))
 void IO_i2c_hotswap_set(tBoolean bOn)
 {
     // Turn the LED on or off as requested.
@@ -152,32 +151,32 @@ uint8_t IO_i2c_hotswap_get(void)
 //*****************************************************************************
 void IO_i2c_hotswap_init(void)
 {
-    // Enable GPIO bank to allow control of the I2C_HOTSWAP.
     SysCtlPeripheralEnable(GPIO_I2C_HOTSWAP_PERIPH_BASE);
-
-    // Configure Port for as an output for the status I2C_HOTSWAP.
     GPIOPinTypeGPIOOutput(GPIO_I2C_HOTSWAP_SEL_PORT, GPIO_I2C_HOTSWAP_SEL_PIN);
-
-    // Initialize I2C_HOTSWAP to OFF (0)
     GPIOPinWrite(GPIO_I2C_HOTSWAP_SEL_PORT, GPIO_I2C_HOTSWAP_SEL_PIN, 0);
 }
-#endif
+#endif  //IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL
 
 
-#ifdef IPMI_MODULES_GPIO_PRESENT
+#if (defined(IPMI_MODULES_GPIO_PRESENT))
 //*****************************************************************************
 // Present OK to Fabric
 //*****************************************************************************
 void IO_present_ok_fab(tBoolean bOn)
 {
-    // Enable GPIO bank to allow control of the SITOK.
+#if (defined(BOARD_6911_FAN))
     SysCtlPeripheralEnable(GPIO_SLOT_SITOK0_PERIPH_BASE);
-
-    // Configure Port for as an output for the status SITOK.
     GPIOPinTypeGPIOOutput(GPIO_SLOT_SITOK0_PORT, GPIO_SLOT_SITOK0_PIN);
-
-    // write SITOK
     GPIOPinWrite(GPIO_SLOT_SITOK0_PORT, GPIO_SLOT_SITOK0_PIN, bOn ? GPIO_SLOT_SITOK0_PIN : 0);
+#endif
+#if (defined(BOARD_6911_POWER))
+    SysCtlPeripheralEnable(GPIO_SLOT_SITOK0_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_SLOT_SITOK1_PERIPH_BASE);
+    GPIOPinTypeGPIOOutput(GPIO_SLOT_SITOK0_PORT, GPIO_SLOT_SITOK0_PIN);
+    GPIOPinTypeGPIOOutput(GPIO_SLOT_SITOK1_PORT, GPIO_SLOT_SITOK1_PIN);
+    GPIOPinWrite(GPIO_SLOT_SITOK0_PORT, GPIO_SLOT_SITOK0_PIN, bOn ? GPIO_SLOT_SITOK0_PIN : 0);
+    GPIOPinWrite(GPIO_SLOT_SITOK1_PORT, GPIO_SLOT_SITOK1_PIN, bOn ? GPIO_SLOT_SITOK1_PIN : 0);
+#endif
 }
 
 //*****************************************************************************
@@ -185,13 +184,15 @@ void IO_present_ok_fab(tBoolean bOn)
 //*****************************************************************************
 uint8_t IO_present_check(void)
 {
-    unsigned char present_ok;
+    unsigned char present_ok = 0;
 
-    present_ok = 0;
-    present_ok |= GPIOPinRead(GPIO_SLOT_SITCHK3_PORT, GPIO_SLOT_SITCHK3_PIN) ? 0x1 << 3 : 0;
-    present_ok |= GPIOPinRead(GPIO_SLOT_SITCHK2_PORT, GPIO_SLOT_SITCHK2_PIN) ? 0x1 << 2 : 0;
+#if (defined(BOARD_6911_FAN))
+    present_ok |= GPIOPinRead(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN) ? 0x1 << 0 : 0;
+#endif
+#if (defined(BOARD_6911_POWER))
     present_ok |= GPIOPinRead(GPIO_SLOT_SITCHK1_PORT, GPIO_SLOT_SITCHK1_PIN) ? 0x1 << 1 : 0;
     present_ok |= GPIOPinRead(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN) ? 0x1 << 0 : 0;
+#endif
 
     if ((present_ok & GPIO_SLOT_SITCHK_MASK) == GPIO_SLOT_SITCHK_MASK)
     {
@@ -206,25 +207,24 @@ uint8_t IO_present_check(void)
 //*****************************************************************************
 void IO_present_init(void)
 {
-    // Enable GPIO bank to read of the slot number.
+#if (defined(BOARD_6911_FAN))
+    SysCtlPeripheralEnable(GPIO_SLOT_SITCHK0_PERIPH_BASE);
+    GPIOPinTypeGPIOInput(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+#endif
+#if (defined(BOARD_6911_POWER))
     SysCtlPeripheralEnable(GPIO_SLOT_SITCHK0_PERIPH_BASE);
     SysCtlPeripheralEnable(GPIO_SLOT_SITCHK1_PERIPH_BASE);
-    SysCtlPeripheralEnable(GPIO_SLOT_SITCHK2_PERIPH_BASE);
-    SysCtlPeripheralEnable(GPIO_SLOT_SITCHK3_PERIPH_BASE);
-
-    // Configure Port for as an input for the present check.
     GPIOPinTypeGPIOInput(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN);
     GPIOPadConfigSet(GPIO_SLOT_SITCHK0_PORT, GPIO_SLOT_SITCHK0_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
     GPIOPinTypeGPIOInput(GPIO_SLOT_SITCHK1_PORT, GPIO_SLOT_SITCHK1_PIN);
     GPIOPadConfigSet(GPIO_SLOT_SITCHK1_PORT, GPIO_SLOT_SITCHK1_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-    GPIOPinTypeGPIOInput(GPIO_SLOT_SITCHK2_PORT, GPIO_SLOT_SITCHK2_PIN);
-    GPIOPadConfigSet(GPIO_SLOT_SITCHK2_PORT, GPIO_SLOT_SITCHK2_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-    GPIOPinTypeGPIOInput(GPIO_SLOT_SITCHK3_PORT, GPIO_SLOT_SITCHK3_PIN);
-    GPIOPadConfigSet(GPIO_SLOT_SITCHK3_PORT, GPIO_SLOT_SITCHK3_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-}
 #endif
+}
+#endif  // IPMI_MODULES_GPIO_PRESENT
 
-#ifdef IPMI_MODULES_GPIO_SLOT_ADDR
+
+#if (defined(IPMI_MODULES_GPIO_SLOT_ADDR))
 //*****************************************************************************
 // Slot Address Get
 //*****************************************************************************
@@ -232,12 +232,22 @@ uint8_t IO_slot_addr_get(void)
 {
     uint8_t board_slot_addr = 0;
 
+#if (defined(BOARD_6911_SWITCH) || defined(BOARD_6911_FABRIC))
     board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR4_PORT, GPIO_SLOT_ADDR4_PIN) ? 0x1 << 4 : 0;
     board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR3_PORT, GPIO_SLOT_ADDR3_PIN) ? 0x1 << 3 : 0;
     board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR2_PORT, GPIO_SLOT_ADDR2_PIN) ? 0x1 << 2 : 0;
     board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN) ? 0x1 << 1 : 0;
     board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN) ? 0x1 << 0 : 0;
-
+#endif
+#if (defined(BOARD_6911_FAN))
+    board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN) ? 0x1 << 1 : 0;
+    board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN) ? 0x1 << 0 : 0;
+#endif
+#if (defined(BOARD_6911_POWER))
+    board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR2_PORT, GPIO_SLOT_ADDR2_PIN) ? 0x1 << 2 : 0;
+    board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN) ? 0x1 << 1 : 0;
+    board_slot_addr |= GPIOPinRead(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN) ? 0x1 << 0 : 0;
+#endif
     return board_slot_addr;
 }
 
@@ -246,6 +256,7 @@ uint8_t IO_slot_addr_get(void)
 //*****************************************************************************
 void IO_slot_addr_init(void)
 {
+#if (defined(BOARD_6911_SWITCH) || defined(BOARD_6911_FABRIC))
     // Enable GPIO bank to read of the slot number.
     SysCtlPeripheralEnable(GPIO_SLOT_ADDR0_PERIPH_BASE);
     SysCtlPeripheralEnable(GPIO_SLOT_ADDR1_PERIPH_BASE);
@@ -264,10 +275,38 @@ void IO_slot_addr_init(void)
     GPIOPadConfigSet(GPIO_SLOT_ADDR3_PORT, GPIO_SLOT_ADDR3_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
     GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR4_PORT, GPIO_SLOT_ADDR4_PIN);
     GPIOPadConfigSet(GPIO_SLOT_ADDR4_PORT, GPIO_SLOT_ADDR4_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-}
 #endif
+#if (defined(BOARD_6911_FAN))
+    // Enable GPIO bank to read of the slot number.
+    SysCtlPeripheralEnable(GPIO_SLOT_ADDR0_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_SLOT_ADDR1_PERIPH_BASE);
 
-#ifdef IPMI_MODULES_GPIO_BOARD_TYPE
+    // Configure Port for as an input for the present check.
+    GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+#endif
+#if (defined(BOARD_6911_POWER))
+    // Enable GPIO bank to read of the slot number.
+    SysCtlPeripheralEnable(GPIO_SLOT_ADDR0_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_SLOT_ADDR1_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_SLOT_ADDR2_PERIPH_BASE);
+
+    // Configure Port for as an input for the present check.
+    GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_ADDR0_PORT, GPIO_SLOT_ADDR0_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_ADDR1_PORT, GPIO_SLOT_ADDR1_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_SLOT_ADDR2_PORT, GPIO_SLOT_ADDR2_PIN);
+    GPIOPadConfigSet(GPIO_SLOT_ADDR2_PORT, GPIO_SLOT_ADDR2_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+#endif
+}
+#endif  //IPMI_MODULES_GPIO_SLOT_ADDR
+
+
+
+#if (defined(IPMI_MODULES_GPIO_BOARD_TYPE))
 //*****************************************************************************
 // Board Type Get
 //*****************************************************************************
@@ -275,9 +314,15 @@ uint8_t IO_board_type_get(void)
 {
     uint8_t board_type = 0;
 
+#if (defined(BOARD_6911_FAN))
     board_type |= GPIOPinRead(GPIO_BOARD_TYPE2_PORT, GPIO_BOARD_TYPE2_PIN) ? 0x1 << 2 : 0;
     board_type |= GPIOPinRead(GPIO_BOARD_TYPE1_PORT, GPIO_BOARD_TYPE1_PIN) ? 0x1 << 1 : 0;
     board_type |= GPIOPinRead(GPIO_BOARD_TYPE0_PORT, GPIO_BOARD_TYPE0_PIN) ? 0x1 << 0 : 0;
+#endif
+#if (defined(BOARD_6911_POWER))
+    board_type |= GPIOPinRead(GPIO_BOARD_TYPE1_PORT, GPIO_BOARD_TYPE1_PIN) ? 0x1 << 1 : 0;
+    board_type |= GPIOPinRead(GPIO_BOARD_TYPE0_PORT, GPIO_BOARD_TYPE0_PIN) ? 0x1 << 0 : 0;
+#endif
 
     return board_type;
 }
@@ -287,6 +332,7 @@ uint8_t IO_board_type_get(void)
 //*****************************************************************************
 void IO_board_type_init(void)
 {
+#if (defined(BOARD_6911_FAN))
     // Enable GPIO bank to read of the slot number.
     SysCtlPeripheralEnable(GPIO_BOARD_TYPE0_PERIPH_BASE);
     SysCtlPeripheralEnable(GPIO_BOARD_TYPE1_PERIPH_BASE);
@@ -299,13 +345,26 @@ void IO_board_type_init(void)
     GPIOPadConfigSet(GPIO_BOARD_TYPE1_PORT, GPIO_BOARD_TYPE1_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
     GPIOPinTypeGPIOInput(GPIO_BOARD_TYPE2_PORT, GPIO_BOARD_TYPE2_PIN);
     GPIOPadConfigSet(GPIO_BOARD_TYPE2_PORT, GPIO_BOARD_TYPE2_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-}
 #endif
+#if (defined(BOARD_6911_POWER))
+    // Enable GPIO bank to read of the slot number.
+    SysCtlPeripheralEnable(GPIO_BOARD_TYPE0_PERIPH_BASE);
+    SysCtlPeripheralEnable(GPIO_BOARD_TYPE1_PERIPH_BASE);
 
-#ifdef IPMI_MODULES_GPIO_GOOD_FAB
+    // Configure Port for as an input for the present check.
+    GPIOPinTypeGPIOInput(GPIO_BOARD_TYPE0_PORT, GPIO_BOARD_TYPE0_PIN);
+    GPIOPadConfigSet(GPIO_BOARD_TYPE0_PORT, GPIO_BOARD_TYPE0_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_BOARD_TYPE1_PORT, GPIO_BOARD_TYPE1_PIN);
+    GPIOPadConfigSet(GPIO_BOARD_TYPE1_PORT, GPIO_BOARD_TYPE1_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+#endif
+}
+#endif  //IPMI_MODULES_GPIO_BOARD_TYPE
+
+
 //*****************************************************************************
 // Set the status GOOD_FAB on or off.
 //*****************************************************************************
+#if (defined(IPMI_MODULES_GPIO_GOOD_FAB))
 void IO_good_fab_set(tBoolean bOn)
 {
     // Turn the LED on or off as requested.
@@ -330,10 +389,10 @@ void IO_good_fab_init(void)
     GPIOPinWrite(GPIO_GOOD_FAB0_PORT, GPIO_GOOD_FAB0_PIN, 0);
     GPIOPinWrite(GPIO_GOOD_FAB1_PORT, GPIO_GOOD_FAB1_PIN, 0);
 }
-#endif
+#endif  // IPMI_MODULES_GPIO_GOOD_FAB
 
 
-#ifdef GPIO_WATCHDOG_PERIPH_BASE
+#if (defined(IPMI_MODULES_GPIO_WATCHDOG))
 //*****************************************************************************
 // Set the status WATCHDOG
 //*****************************************************************************
@@ -360,10 +419,10 @@ void IO_watchdog_init(void)
 #endif
 
 
-#ifdef IPMI_MODULES_GPIO_FULL_SPEED
 //*****************************************************************************
 // Set the status FULL_SPEED
 //*****************************************************************************
+#if (defined(IPMI_MODULES_GPIO_FULL_SPEED))
 void IO_full_speed_set(tBoolean bOn)
 {
     // Turn the FULL_SPEED on or off as requested.
@@ -388,7 +447,8 @@ void IO_full_speed_init(void)
     GPIOPinWrite(GPIO_FULL_SPEED0_PORT, GPIO_FULL_SPEED0_PIN, 0);
     GPIOPinWrite(GPIO_FULL_SPEED1_PORT, GPIO_FULL_SPEED1_PIN, 0);
 }
-#endif
+#endif  // IPMI_MODULES_GPIO_FULL_SPEED
+
 
 int gpio_pin_number(unsigned long pins)
 {
@@ -479,54 +539,60 @@ void IO_gpio_c_int_handler(void)
 
 //*****************************************************************************
 //
-// Init IO hardware for LED/SOL_SEL/I2C_HOTSWAP
+// Init IO hardware for SLOT/TYPE/WDT/LED/SOL_SEL/I2C_HOTSWAP
 //
 //*****************************************************************************
 void IO_init(void)
 {
-#ifdef IPMI_MODULES_GPIO_WATCHDOG                                   // 看门狗初始化
-    IO_watchdog_init();
+#if (defined(IPMI_MODULES_GPIO_SLOT_ADDR))
+    IO_slot_addr_init();                                            // 槽位地址初始化
+    g_slot_addr = IO_slot_addr_get();
+    DEBUG("g_slot_addr=0x%x\r\n", g_slot_addr);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_CPU_LED                                    // LED灯初始化
-    IO_led0_init();
-    IO_led1_init();
+#if (defined(IPMI_MODULES_GPIO_BOARD_TYPE))
+    IO_board_type_init();                                           // 板卡类型初始化
+    g_board_type = IO_board_type_get();
+    DEBUG("g_board_type=0x%x\r\n", g_board_type);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_PRESENT                                    // 在位信号初始化并通知主控
-    IO_present_init();
-    if (IO_present_check())
+#if (defined(IPMI_MODULES_GPIO_WATCHDOG))
+    IO_watchdog_init();                                             // 看门狗初始化
+#endif
+
+#if (defined(IPMI_MODULES_GPIO_PRESENT))
+    IO_present_init();                                              // 在位信号初始化并通知主控
+    g_present_ok = IO_present_check();
+    DEBUG("g_present_ok=0x%x\r\n", g_present_ok);
+    if (g_present_ok)
     {
         IO_present_ok_fab(1);
     }
-    else
-    {
-        IO_present_ok_fab(0);
-    }
 #endif
 
-#ifdef IPMI_MODULES_GPIO_SLOT_ADDR                                  // 槽位地址初始化
-    IO_slot_addr_init();
+#if (defined(IPMI_MODULES_GPIO_SOL_SEL))
+    IO_sol_init();                                                  // SOL硬件初始化
+    IO_sol_set(1);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_BOARD_TYPE                                 // 板卡类型初始化
-    IO_board_type_init();
+#if (defined(IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL))
+    IO_i2c_hotswap_init();                                          // I2C热插拔硬件初始化
+    IO_i2c_hotswap_set(1);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_SOL_SEL                                    // SOL硬件初始化
-    IO_sol_init();
+#if (defined(IPMI_MODULES_GPIO_GOOD_FAB))
+    IO_good_fab_init();                                             // 主控信号通知初始化
+    IO_good_fab_set(1);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL                            // I2C热插拔硬件初始化
-    IO_i2c_hotswap_init();
+#if (defined(IPMI_MODULES_GPIO_FULL_SPEED))
+    IO_full_speed_init();                                           // 风扇板初始化
+    IO_full_speed_set(0);
 #endif
 
-#ifdef IPMI_MODULES_GPIO_GOOD_FAB                                   // 主控信号通知初始化
-    IO_good_fab_init();
-#endif
-
-#ifdef IPMI_MODULES_GPIO_FULL_SPEED                                 // 风扇板初始化
-    IO_full_speed_init();
+#if (defined(IPMI_MODULES_GPIO_CPU_LED))
+    IO_led0_init();                                                 // LED灯初始化
+    IO_led1_init();
 #endif
 }
 

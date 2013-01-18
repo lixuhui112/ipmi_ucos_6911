@@ -84,29 +84,38 @@ void led_change(uint8_t period)
     led_start();
 }
 
-void ipmi_sensor_init(void)
+void ipmi_modules_init(void)
 {
-#ifdef IPMI_CHIP_MAX6635
+#if defined(IPMI_CHIP_AT24CXX)
+    at24xx_init();
+#endif
+#if (IPMI_DEV_SEL)
+    ipmi_sel_init();
+#endif
+#if (IPMI_DEV_SDR)
+    ipmi_sdr_init();
+#endif
+}
+
+void ipmi_sensors_init(void)
+{
+#if defined(IPMI_CHIP_MAX6635)
     max6635_init();
 #endif
 
-#ifdef IPMI_CHIP_UCD9081
+#if defined(IPMI_CHIP_UCD9081)
     ucd9081_init();
 #endif
 
-#ifdef IPMI_CHIP_ADT7470
+#if defined(IPMI_CHIP_ADT7470)
     adt7470_init();
 #endif
 
-#ifdef IPMI_CHIP_AT24CXX
-    at24xx_init();
-#endif
-
-#ifdef IPMI_CHIP_INA230
+#if defined(IPMI_CHIP_INA230)
     ina230_init();
 #endif
 
-#ifdef IPMI_CHIP_MC_LOCATOR
+#if defined(IPMI_CHIP_MC_LOCATOR)
     mc_locator_init();
 #endif
 

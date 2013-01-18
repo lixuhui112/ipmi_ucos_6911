@@ -37,7 +37,7 @@ History:
 #define AT24C64_PAGE_NUM            256     /* 总共256个页面 */
 #define AT24C64_ADDR_SIZE           2
 
-const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {AT24CXX_SLAVE_ADDR};   /* 8bit address */
+const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {0x50};   /* 7bit address */
 
 I2C_DEVICE at24xx_dev[MAX_AT24XX_COUNT];
 
@@ -51,30 +51,54 @@ void at24xx_init(void)
     at24xx_init_chip();
 }
 
-uint8_t at24xx_read(uint32_t addr, uint8_t *buffer, uint32_t size)
+uint32_t at24xx_read(uint32_t addr, uint8_t *buffer, uint32_t size)
 {
     if (addr >= AT24C64_MAX_SIZE || size > AT24C64_MAX_SIZE)
     {
-        return -1;
+        return 1;
     }
 
     I2C_i2c1_slave_dev_set(&at24xx_dev[0], addr, (uint8_t*)&buffer[0], size);
-    I2C_i2c1_master_read(&at24xx_dev[0]);
 
-    return 0;
+    return I2C_i2c1_master_read(&at24xx_dev[0]);
 }
 
-uint8_t at24xx_write(uint32_t addr, uint8_t *buffer, uint32_t size)
+uint32_t at24xx_write(uint32_t addr, uint8_t *buffer, uint32_t size)
 {
-    if (addr >= AT24C64_MAX_SIZE || size > AT24C64_MAX_SIZE)
-    {
-        return -1;
+    uint32_t error = 0;
+
+    if (addr >= AT24C64_MAX_SIZE || size > AT24C64_MAX_SIZE) {
+        return 1;
     }
 
     I2C_i2c1_slave_dev_set(&at24xx_dev[0], addr, (uint8_t*)&buffer[0], size);
-    I2C_i2c1_master_write(&at24xx_dev[0]);
+    error = I2C_i2c1_master_write(&at24xx_dev[0]);
 
-    return 0;
+    mdelay(1);
+
+    return error;
+}
+
+uint32_t at24xx_clear(uint32_t addr, uint32_t size)
+{
+    const uint8_t buffer[AT24C64_PAGE_SIZE] = {0};
+    uint32_t offset;
+    uint32_t error = 0;
+
+    if (size % AT24C64_PAGE_SIZE != 0 || addr % AT24C64_PAGE_SIZE != 0) {
+        return 1;
+    }
+
+    for (offset = 0; offset < size; offset = offset + AT24C64_PAGE_SIZE) {
+        I2C_i2c1_slave_dev_set(&at24xx_dev[0], addr + offset, (uint8_t*)&buffer[0], AT24C64_PAGE_SIZE);
+        error = I2C_i2c1_master_write(&at24xx_dev[0]);
+        if (error) {
+            return error;
+        }
+        mdelay(1);
+    }
+
+    return error;
 }
 
 #endif  // IPMI_CHIP_AT24CXX

@@ -11,10 +11,101 @@
 #include "ipmi_lib/ipmi.h"
 #include "app/lib_common.h"
 
+/******************************************************************************
+* IPMI EEPROM STORAGE DESIGN
+* used chip at24c64 page size 32b, max size 8k
+*
+*       at24c64
+* +-+-+-+-+-+---+---+---+  0
+* | CPU reverse space   |
+* +-+-+-+-+-+---+---+---+  2k
+* | ARM reverse space   |
+* +-+-+-+-+-+---+---+---+  4k
+* | IPMI SDR space      |  (record size 64 byte, max record 64)
+* +-+-+-+-+-+---+---+---+  6k
+* | IPMI SEL space      |  (record size 16 byte, max record 128)
+* +-+-+-+-+-+---+---+---+  8k
+*
+*
+******************************************************************************/
+
 int ipmi_cmd_storage(struct ipmi_ctx *ctx_cmd)
 {
     DEBUG("ipmi_cmd_storage\r\n");
-    ipmi_cmd_invalid(ctx_cmd);
+
+    switch (ctx_cmd->req.msg.cmd)
+    {
+        /* FRU Device Commands **********************************************/
+        case GET_FRU_INVENTORY_AREA_INFO:                   /* 0x10 */
+        case READ_FRU_DATA:                                 /* 0x11 */
+        case WRITE_FRU_DATA:                                /* 0x12 */
+            ipmi_cmd_invalid(ctx_cmd);
+            break;
+
+        /* SDR Device Commands **********************************************/
+        case GET_SDR_REPOS_INFO:                            /* 0x20 */
+        case GET_SDR_REPOS_ALLOC_INFO:                      /* 0x21 */
+        case RESERVE_SDR_REPOSITORY:                        /* 0x22 */
+        case GET_SDR:                                       /* 0x23 */
+        case ADD_SDR:                                       /* 0x24 */
+        case PARTIAL_ADD_SDR:                               /* 0x25 */
+        case DELETE_SDR:                                    /* 0x26 */
+        case CLEAR_SDR_REPOSITORY:                          /* 0x27 */
+        case GET_SDR_REPOSITORY_TIME:                       /* 0x28 */
+        case SET_SDR_REPOSITORY_TIME:                       /* 0x29 */
+        case ENTER_SDR_REPOS_UPDATE_MODE:                   /* 0x2a */
+        case EXIT_SDR_REPOS_UPDATE_MODE:                    /* 0x2b */
+        case RUN_INITIALIZATION_AGENT:                      /* 0x2c */
+            ipmi_cmd_invalid(ctx_cmd);
+            break;
+
+        /* SEL Device Commands **********************************************/
+        case GET_SEL_INFO:                                  /* 0x40 */
+            ipmi_get_sel_info(ctx_cmd);
+            break;
+
+        case GET_SEL_ALLOCATION_INFO:                       /* 0x41 */
+            ipmi_get_sel_allocation_info(ctx_cmd);
+            break;
+
+        case RESERVE_SEL:                                   /* 0x42 */
+            ipmi_reserve_sel(ctx_cmd);
+            break;
+
+        case GET_SEL_ENTRY:                                 /* 0x43 */
+            ipmi_get_sel_entry(ctx_cmd);
+            break;
+
+        case ADD_SEL_ENTRY:                                 /* 0x44 */
+            ipmi_add_sel_entry(ctx_cmd);
+            break;
+
+        case DELETE_SEL_ENTRY:                              /* 0x46 */
+            ipmi_del_sel_entry(ctx_cmd);
+            break;
+
+        case CLEAR_SEL:                                     /* 0x47 */
+            ipmi_clear_sel_entry(ctx_cmd);
+            break;
+
+        case GET_SEL_TIME:                                  /* 0x48 */
+            ipmi_get_sel_time(ctx_cmd);
+            break;
+
+        case SET_SEL_TIME:                                  /* 0x49 */
+            ipmi_set_sel_time(ctx_cmd);
+            break;
+
+        case PARTIAL_ADD_SEL_ENTRY:                         /* 0x45 */
+        case GET_AUXILIARY_LOG_STATUS:                      /* 0x5A */
+        case SET_AUXILIARY_LOG_STATUS:                      /* 0x5B */
+        case GET_SEL_TIME_UTC_OFFSET:                       /* 0x5C */
+        case SET_SEL_TIME_UTC_OFFSET:                       /* 0x5D */
+        default:
+            ipmi_cmd_invalid(ctx_cmd);
+            break;
+    }
+
     return 0;
 }
 

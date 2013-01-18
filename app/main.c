@@ -26,7 +26,6 @@
 #include "third_party/uartstdio.h"
 #include "ipmi_lib/ipmi_intf.h"
 #include "app/lib_common.h"
-#include "app/lib_slot.h"
 #include "ucos_ii.h"
 
 extern void ipmi_main_start(void);
@@ -110,11 +109,14 @@ void BSP_init(void)
     SysTickEnable();
     SysTickIntEnable();
 
-    // Initialize the UART Hardware.        (ICMB/SOL)
-    UART_init();
+    // Initialize the DEBUG UART.           (UART0)
+    DEBUG_UART_init();
 
     // Initialize the IO Hardware.          (LED/SOL/I2C_HOTSWAP)
     IO_init();
+
+    // Initialize the UART Hardware.        (ICMB/SOL)
+    UART_init();
 
     // Initialize the SPI Hardware.         (SSIF)
     SPI_init();
@@ -123,13 +125,13 @@ void BSP_init(void)
     I2C_init();
 
     // Initialize the Ethernet Hardware.    (LAN)
-    //ETH_init();
+    ETH_init();
 }
 
 int main(void)
 {
-    // JTAG防写死
-    JTAG_Wait();
+    // JTAG防写死，如果使用JTAG引脚作为GPIO，需要开启功能以便烧写调试
+    //JTAG_Wait();
 
     // 芯片外设初始化
     BSP_init();

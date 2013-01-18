@@ -573,8 +573,11 @@ void ipmi_get_sensor_type(struct ipmi_ctx *ctx_cmd)
 int ipmi_cmd_se(struct ipmi_ctx *ctx_cmd)
 {
     DEBUG("ipmi_cmd_se\r\n");
+
     switch (ctx_cmd->req.msg.cmd)
     {
+        /* Sensor Device Commands *******************************************/
+
         case GET_DEVICE_SDR_INFO:                           /* 0x20 */
             ipmi_get_device_sdr_info(ctx_cmd);
             break;

@@ -24,9 +24,7 @@
 #include "ucos_ii.h"
 
 //*****************************************************************************
-//
 // Defines bus and device for the ipmi/i2c
-//
 //*****************************************************************************
 #if 0
 static ipmi_i2c_bus i2c0;
@@ -39,11 +37,9 @@ static ipmi_i2c_ram_dev i2c_ram_dev;
 #endif
 
 //*****************************************************************************
-//
 // Read some data from slave device on the I2C bus.
-//
 //*****************************************************************************
-int I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
+uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
         unsigned char addr_size, unsigned long data_size, char *buf)
 {
     unsigned char data_addr_i2c[4];
@@ -180,11 +176,9 @@ int I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long data
 }
 
 //*****************************************************************************
-//
 // Write some data to slave device on the I2C bus.
-//
 //*****************************************************************************
-int I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
+uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
         unsigned char addr_size, unsigned long data_size, char *buf)
 {
     unsigned char data_addr_i2c[4];
@@ -287,25 +281,26 @@ int I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned long dat
     return I2CMasterErr(dev);
 }
 
-#ifdef IPMI_MODULES_I2C0_IPMB
-
-static I2C_DRIVER i2c0;
-static I2C_DRIVER i2c1;
+#if (defined(IPMI_MODULES_I2C0_IPMB))
+//*****************************************************************************
+//
+// The function of I2C1 Interface
+//
+//*****************************************************************************
+static I2C_DRIVER i2c0;                                     // I2C0设备
+static uint8_t i2c0_self_address;                           // I2C0从设备地址
 
 #define I2C0_BUF_SIZE           0x80                        // IPMB帧最大长度
-
 static unsigned char i2c0_rx_buf[I2C0_BUF_SIZE];
 static unsigned char i2c0_tx_buf[I2C0_BUF_SIZE];
 static unsigned char i2c0_rx_idx;
 static unsigned char i2c0_rx_len;
 static unsigned char i2c0_tx_idx;
 static unsigned char i2c0_tx_len;
-static unsigned char i2c0_ipmb_addr = IPMB_SLAVE_ADDR_DEF;
 //static unsigned long i2c0_rx_timestamp;
+
 //*****************************************************************************
-//
 // The interrupt handler for the I2C0 interrupt.
-//
 //*****************************************************************************
 void I2C_i2c0_int_handler(void)
 {
@@ -546,70 +541,9 @@ void I2C_i2c0_int_handler(void)
 }
 
 //*****************************************************************************
-//
-// The I2C0 hardware Initailize for IPMB.
-//
-//*****************************************************************************
-void I2C_i2c0_ipmb_init(void)
-{
-    i2c0.sem = OSSemCreate(1);
-    i2c0.dev = NULL;
-    i2c0.addr_index = 0;
-    i2c0.data_index = 0;
-    i2c0.flags = 0;
-    i2c0.status = I2C_STAT_IDLE;
-
-    // The I2C0 peripheral must be enabled before use.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-
-    // For this example I2C0 is used with PortB[3:2].
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-
-    // Configure the pin muxing for I2C0 functions on port B2 and B3.
-    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
-
-    // Select the I2C function for these pins.
-    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-
-    // Enable the I2C0 interrupt controller.
-    IntEnable(INT_I2C0);
-
-    // Enable and initialize the I2C0 master module. Use a data rate of 100kbps.
-    I2CMasterInit(I2C0_MASTER_BASE, false);
-
-    // Enable the I2C0 master module interrupt
-    I2CMasterIntEnable(I2C0_MASTER_BASE);
-
-    // Enable the I2C0 master module.
-    I2CMasterEnable(I2C0_MASTER_BASE);
-
-    // Set the slave address to Default Slave Address.
-    //I2CSlaveInit(I2C0_SLAVE_BASE, IPMB_SLAVE_ADDR_DEF);
-
-    // Register I2C Int Handler
-    //I2CIntRegister(I2C0_MASTER_BASE, I2C_i2c0_int_handler);
-
-    // Enable the I2C0 slave module interrupt
-    //I2CSlaveIntEnable(I2C0_SLAVE_BASE);
-
-    //
-    // Tell the master module what address it will place on the bus when
-    // communicating with the slave.  Set the address to SLAVE_ADDRESS
-    // (as set in the slave module).  The receive parameter is set to false
-    // which indicates the I2C Master is initiating a writes to the slave.  If
-    // true, that would indicate that the I2C Master is initiating reads from
-    // the slave.
-    //
-    //I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, SLAVE_ADDRESS, false);
-}
-
-//*****************************************************************************
-//
 // The I2C0 IPMB slave device read.
-//
 //*****************************************************************************
-int I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
+uint32_t I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 {
     for (i2c0_rx_idx = 0; i2c0_rx_idx < i2c0_rx_len; i2c0_rx_idx++)
     {
@@ -622,11 +556,9 @@ int I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 }
 
 //*****************************************************************************
-//
 // The I2C0 IPMB master device write.
-//
 //*****************************************************************************
-int I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size)
+uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size)
 {
     unsigned char j;
 
@@ -650,8 +582,10 @@ int I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size)
     return 0;
 }
 
-
-int I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
+//*****************************************************************************
+// The I2C0 IPMB master device read and write
+//*****************************************************************************
+uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
 {
     INT8U err;
 
@@ -719,12 +653,18 @@ int I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
     return(I2CMasterErr(I2C0_MASTER_BASE));
 }
 
+//*****************************************************************************
+// The I2C0 IPMB slave device init
+//*****************************************************************************
 void I2C_i2c0_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size)
 {
     dev->slave_addr = slave_addr;
     dev->addr_size = addr_size;
 }
 
+//*****************************************************************************
+// The I2C0 IPMB slave device setting
+//*****************************************************************************
 void I2C_i2c0_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_buf, uint32_t data_size)
 {
     dev->reg_addr = reg_addr;
@@ -732,29 +672,78 @@ void I2C_i2c0_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_bu
     dev->data_size = data_size;
 }
 
-int I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr)
+//*****************************************************************************
+// The I2C0 IPMB slave device address set
+//*****************************************************************************
+void I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr)
 {
-    i2c0_ipmb_addr = self_addr;
+    i2c0_self_address = self_addr;
 
-    I2CSlaveInit(I2C0_SLAVE_BASE, i2c0_ipmb_addr);
-
-    return 0;
+    I2CSlaveInit(I2C0_SLAVE_BASE, i2c0_self_address);
+    I2CSlaveIntEnable(I2C0_SLAVE_BASE);
+    IntEnable(INT_I2C0);
+    IntMasterEnable();
+    I2CSlaveEnable(I2C0_SLAVE_BASE);
 }
 
-char I2C_i2c0_ipmb_self_addr_get(void)
+//*****************************************************************************
+// The I2C0 IPMB slave device address get
+//*****************************************************************************
+uint8_t I2C_i2c0_ipmb_self_addr_get(void)
 {
-    return i2c0_ipmb_addr;
+    return i2c0_self_address;
 }
 
+//*****************************************************************************
+// The I2C0 hardware Initailize for IPMB.
+//*****************************************************************************
+void I2C_i2c0_ipmb_init(void)
+{
+    i2c0.sem = OSSemCreate(1);
+    i2c0.dev = NULL;
+    i2c0.addr_index = 0;
+    i2c0.data_index = 0;
+    i2c0.flags = 0;
+    i2c0.status = I2C_STAT_IDLE;
+
+    // The I2C0 peripheral must be enabled before use.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+
+    // For this example I2C0 is used with PortB[3:2].
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+    // Configure the pin muxing for I2C0 functions on port B2 and B3.
+    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
+    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+
+    // Select the I2C function for these pins.
+    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+
+    IntEnable(INT_I2C0);
+
+    // Enable and initialize the I2C1 master module. Use a data rate of 100kbps.
+    I2CMasterInit(I2C0_MASTER_BASE, false);
+
+    I2CMasterIntEnable(I2C0_MASTER_BASE);
+
+    I2CMasterEnable(I2C0_MASTER_BASE);
+
+    // set i2c0 to slave mode
+    //I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + g_slot_addr);
+}
 #endif
 
 
+#if (defined(IPMI_MODULES_I2C1_HARD_PMB))
+//*****************************************************************************
+//
+// The function of I2C1 Interface
+//
+//*****************************************************************************
 
-#ifdef IPMI_MODULES_I2C1_HARD_PMB
 static I2C_DRIVER i2c1;
 
-#define I2C1_BUF_SIZE           0x80                        // IPMB帧最大长度
-
+#define I2C1_BUF_SIZE  0x80                        // IPMB帧最大长度
 //static unsigned char i2c1_rx_buf[I2C1_BUF_SIZE];
 //static unsigned char i2c1_tx_buf[I2C1_BUF_SIZE];
 //static unsigned char i2c1_rx_idx;
@@ -765,9 +754,7 @@ static I2C_DRIVER i2c1;
 //static unsigned long i2c1_rx_timestamp;
 
 //*****************************************************************************
-//
 // The interrupt handler for the I2C1 interrupt.
-//
 //*****************************************************************************
 void I2C_i2c1_int_handler(void)
 {
@@ -777,7 +764,7 @@ void I2C_i2c1_int_handler(void)
     //static unsigned char i2c0_frame = 0;
     //static unsigned char i2c0_size = 0;
 
-    // 获取I2C0主机中断状态
+    // 获取I2C1主机中断状态
     status = I2CMasterIntStatus(I2C1_MASTER_BASE, true);
     if (status)
     {
@@ -904,42 +891,12 @@ void I2C_i2c1_int_handler(void)
     }
 }
 
-//*****************************************************************************
-//
-// The I2C1 hardware Initailize for PMB.
-//
-//*****************************************************************************
-void I2C_i2c1_pmb_init(void)
-{
-    // The I2C0 peripheral must be enabled before use.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
-
-    // For this example I2C0 is used with PortA[7:6].
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-
-    // Configure the pin muxing for I2C0 functions on port B2 and B3.
-    GPIOPinConfigure(GPIO_PA6_I2C1SCL);
-    GPIOPinConfigure(GPIO_PA7_I2C1SDA);
-
-    // Select the I2C function for these pins.
-    GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_6 | GPIO_PIN_7);
-
-    IntEnable(INT_I2C1);
-
-    // Enable and initialize the I2C0 master module. Use a data rate of 100kbps.
-    I2CMasterInit(I2C1_MASTER_BASE, false);
-
-    I2CMasterIntEnable(I2C1_MASTER_BASE);
-
-    I2CMasterEnable(I2C1_MASTER_BASE);
-}
-
-int I2C_i2c1_pmb_read(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
+uint32_t I2C_i2c1_pmb_read(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
 {
     return I2C_dev_read(I2C1_MASTER_BASE, slave_addr, data_addr, addr_size, size, buf);
 }
 
-int I2C_i2c1_pmb_write(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
+uint32_t I2C_i2c1_pmb_write(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
 {
     return I2C_dev_write(I2C1_MASTER_BASE, slave_addr, data_addr, addr_size, size, buf);
 }
@@ -957,7 +914,7 @@ void I2C_i2c1_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_bu
     dev->data_size = data_size;
 }
 
-int I2C_i2c1_read_write(I2C_DEVICE *dev, tBoolean flags)
+uint32_t I2C_i2c1_read_write(I2C_DEVICE *dev, tBoolean flags)
 {
     INT8U err;
 
@@ -1025,10 +982,42 @@ int I2C_i2c1_read_write(I2C_DEVICE *dev, tBoolean flags)
     return(I2CMasterErr(I2C1_MASTER_BASE));
 }
 
+//*****************************************************************************
+// The I2C1 hardware Initailize for PMB.
+//*****************************************************************************
+void I2C_i2c1_pmb_init(void)
+{
+    // The I2C0 peripheral must be enabled before use.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
+
+    // For this example I2C0 is used with PortA[7:6].
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+    // Configure the pin muxing for I2C0 functions on port B2 and B3.
+    GPIOPinConfigure(GPIO_PA6_I2C1SCL);
+    GPIOPinConfigure(GPIO_PA7_I2C1SDA);
+
+    // Select the I2C function for these pins.
+    GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+
+    IntEnable(INT_I2C1);
+
+    // Enable and initialize the I2C1 master module. Use a data rate of 100kbps.
+    I2CMasterInit(I2C1_MASTER_BASE, false);
+
+    I2CMasterIntEnable(I2C1_MASTER_BASE);
+
+    I2CMasterEnable(I2C1_MASTER_BASE);
+}
 #endif
 
 
-#ifdef IPMI_MODULES_SOFT_PMB
+//*****************************************************************************
+//
+// The function of SoftWare I2C Interface
+//
+//*****************************************************************************
+#if (defined(IPMI_MODULES_SOFT_PMB))
 void I2C_i2c1_soft_pmb_init(void)
 {
 #if 0
@@ -1045,12 +1034,12 @@ void I2C_i2c1_soft_pmb_init(void)
 #endif
 }
 
-int I2C_i2c1_soft_pmb_read(unsigned slave_addr, char *buf, unsigned long *size)
+uint32_t I2C_i2c1_soft_pmb_read(unsigned slave_addr, char *buf, unsigned long *size)
 {
     return 0;
 }
 
-int I2C_i2c1_soft_pmb_write(unsigned slave_addr, char *buf, unsigned long size)
+uint32_t I2C_i2c1_soft_pmb_write(unsigned slave_addr, char *buf, unsigned long size)
 {
     return 0;
 }
@@ -1064,46 +1053,14 @@ int I2C_i2c1_soft_pmb_write(unsigned slave_addr, char *buf, unsigned long size)
 //*****************************************************************************
 void I2C_init(void)
 {
-#ifdef IPMI_MODULES_I2C0_IPMB
+#if (defined(IPMI_MODULES_I2C0_IPMB))
     I2C_i2c0_ipmb_init();
 #endif
-
-#ifdef IPMI_MODULES_I2C1_HARD_PMB
+#if (defined(IPMI_MODULES_I2C1_HARD_PMB))
     I2C_i2c1_pmb_init();
 #endif
-
-#ifdef IPMI_MODULES_SOFT_PMB
+#if (defined(IPMI_MODULES_SOFT_PMB))
     I2C_i2c1_soft_pmb_init();
 #endif
 }
-
-
-
-//*****************************************************************************
-//
-// The I2C Chip MAX6635 operation.  (Temperature Monitor)
-//
-//*****************************************************************************
-void I2C_chip_max6635_opt(void)
-{
-}
-
-//*****************************************************************************
-//
-// The I2C Chip PCF8563 operation.  (RealTimeClock)
-//
-//*****************************************************************************
-void I2C_chip_pcf8563_opt(void)
-{
-}
-
-//*****************************************************************************
-//
-// The I2C Chip AT24CXX operation.  (EEPROM for SDR/SEL)
-//
-//*****************************************************************************
-void I2C_chip_at24cxx_opt(void)
-{
-}
-
 

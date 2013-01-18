@@ -216,6 +216,70 @@
 
 //*****************************************************************************
 //
+// Defines IPMI Command ID for Transport
+//
+//*****************************************************************************
+#define SET_LAN_CONFIG_PARAM            0x01
+#define GET_LAN_CONFIG_PARAM            0x02
+#define SUSPEND_BMC_ARPS                0x03
+#define GET_IP_UDP_RMCP_STATISTICS      0x04
+#define SET_SERIAL_MODEM_CONFIG         0x10
+#define GET_SERIAL_MODEM_CONFIG         0x11
+#define SET_SERIAL_MODEM_MUX            0x12
+#define GET_TAP_RESPONSE_CODES          0x13
+#define SET_PPP_UDP_PROXY_TRANSMIT_DATA 0x14
+#define GET_PPP_UDP_PROXY_TRANSMIT_DATA 0x15
+#define SEND_PPP_UDP_PROXY_PACKET       0x16
+#define GET_PPP_UDP_PROXY_RECEIVE_DATA  0x17
+#define SERIAL_MODEM_CONNECTION_ACTIVE  0x18
+#define CALLBACK                        0x19
+#define SET_USER_CALLBACK_OPTIONS       0x1A
+#define GET_USER_CALLBACK_OPTIONS       0x1B
+#define SET_SERIAL_ROUTING_MUX          0x1C
+#define SOL_ACTIVATING                  0x20
+#define SET_SOL_CONFIG_PARAM            0x21
+#define GET_SOL_CONFIG_PARAM            0x22
+#define FORWARDED_COMMAND               0x30
+#define SET_FORWARDED_COMMANDS          0x31
+#define GET_FORWARDED_COMMANDS          0x32
+#define ENABLE_FORWARDED_COMMANDS       0x33
+
+
+//*****************************************************************************
+//
+// Defines IPMI Command ID for Bridge
+//
+//*****************************************************************************
+#define GET_BRIDGE_STATE                0x00
+#define SET_BRIDGE_STATE                0x01
+#define GET_ICMB_ADDRESS                0x02
+#define SET_ICMB_ADDRESS                0x03
+#define SET_BRIDGE_PROXYADDRESS         0x04
+#define GET_BRIDGE_STATISTICS           0x05
+#define GET_ICMB_CAPABILITIES           0x06
+#define CLEAR_BRIDGE_STATISTICS         0x08
+#define GET_BRIDGE_PROXY_ADDRESS        0x09
+#define GET_ICMB_CONNECTOR_INFO         0x0A
+#define GET_ICMB_CONNECTION_ID          0x0B
+#define SEND_ICMB_CONNECTION_ID         0x0C
+#define PREPAREFORDISCOVERY             0x10
+#define GETADDRESSES                    0x11
+#define SETDISCOVERED                   0x12
+#define GETCHASSISDEVICEID              0x13
+#define SETCHASSISDEVICEID              0x14
+#define BRIDGEREQUEST                   0x20
+#define BRIDGEMESSAGE                   0x21
+#define GETEVENTCOUNT                   0x30
+#define SETEVENTDESTINATION             0x31
+#define SETEVENTRECEPTIONSTATE          0x32
+#define SENDICMBEVENTMESSAGE            0x33
+#define GETEVENTDESTINATION             0x34
+#define GETEVENTRECEPTIONSTATE          0x35
+#define ERROR_REPORT                    0xFF
+
+
+//*****************************************************************************
+//
 // Defines IPMI Command ID for PICMG commands
 //
 //*****************************************************************************

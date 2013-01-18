@@ -166,7 +166,7 @@
           <name>CCDefines</name>
           <state>ewarm</state>
           <state>PART_LM3S6911</state>
-          <state>BOARD_6911_SWITCH</state>
+          <state>BOARD_6911_FAN</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -1846,10 +1846,16 @@
       <name>$PROJ_DIR$\ipmi_lib\ipmi_pow.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\ipmi_lib\ipmi_sdr.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_sdr_mc_locator.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_se.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\ipmi_lib\ipmi_sel.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_ssif.c</name>

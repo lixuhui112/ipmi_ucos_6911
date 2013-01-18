@@ -1,6 +1,6 @@
 //*****************************************************************************
 //
-// ipmi_se.c - IPMI Command Header File for Sensor/Event
+// ipmi_se.h - IPMI Command Header File for Sensor/Event
 //
 // author:  qujianning@kyland.com.cn
 // update:  2012/08/03
@@ -1257,6 +1257,7 @@ typedef struct sensor_data {
     sdr_record_entry_t *sdr_record;
     uint8_t last_sensor_reading;
     uint8_t scan_period;                        /* time between each sensor scan in seconds, 0 = no scan */
+    void (*init_function)(void *);              /* the routine that does the sensor sdr init */
     void (*scan_function)(void *);              /* the routine that does the sensor scan */
     void (*sett_function)(void *);              /* the routine that does set the register of chip */
 #ifdef __LITTLE_ENDIAN__

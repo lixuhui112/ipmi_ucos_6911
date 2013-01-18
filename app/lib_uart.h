@@ -23,7 +23,8 @@ int UART_uart1_write(char *buf, unsigned long size);
 int UART_uart2_read(char *buf, unsigned long *size);
 int UART_uart2_write(char *buf, unsigned long size);
 
-void DEBUG_UARTSend(const unsigned char *pucBuffer);
+void DEBUG_UART_init(void);
+void DEBUG_UART_send(const unsigned char *pucBuffer);
 
 #ifdef __cplusplus
 }

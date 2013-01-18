@@ -61,6 +61,10 @@ History:
                                                The limit values programmed are preserved even if
                                                 a Logic 0 is written to this bit and the default
                                                 settings are enabled. */
+#define ADT7470_CFG1_FST_TCH        0x20    /* BIT[5]
+                                               Enable Fast Tach measurement.
+                                               0 = Tach measurement rate is 1 measurement per second
+                                               1 = Tach measurement rate is 1 measurement every 250ms */
 #define ADT7470_CFG1_HFLF           0x40    /* Bit[6]
                                                This bit switches between high frequency and low frequency fan drive.
                                                0 (default) = high frequency fan drive (1.4 kHz or 22.5 kHz.
@@ -165,7 +169,7 @@ History:
 #define ADT7470_VAL_K2              (0)
 
 #define TACH_RAW_2_VAL(v,fpr)       ((90000 * 60 * fpr) / v)
-#define PWM_RAW_2_VAL(pct)          ((float)pct / 0.39)
+#define PWM_RAW_2_VAL(pct)          ((float)pct * 2.55)
 
 
 const unsigned char adt7470_i2c_addr[MAX_ADT7470_DEV] = {ADT7470_SLAVE_ADDR_1, ADT7470_SLAVE_ADDR_2};
@@ -216,6 +220,28 @@ void adt7470_set_speed(uint8_t local_id, uint8_t level)
     I2C_i2c1_master_write(&adt7470_dev[dev]);
 }
 
+void adt7470_init_function(void *arg)
+{
+    uint32_t error;
+    sensor_data_t *sd = (sensor_data_t *)arg;
+    uint8_t dev;
+    uint8_t val;
+
+    dev = sd->local_sensor_id / MAX_ADT7470_SE_PER_DEV;
+
+    val = ADT7470_CFG1_STRT|ADT7470_CFG1_FST_TCH;
+
+    I2C_i2c1_slave_dev_set(&adt7470_dev[dev], ADT7470_REG_CFG1, (uint8_t*)&val, 1);
+    error = I2C_i2c1_master_write(&adt7470_dev[dev]);
+
+    if (error != 0) {
+        sd->unavailable = 1;
+        return;
+    } else {
+        sd->unavailable = 0;
+    }
+}
+
 void adt7470_sett_function(void *arg)
 {
     sensor_data_t *sd = (sensor_data_t *)arg;
@@ -229,7 +255,8 @@ void adt7470_scan_function(void *arg)
 {
     sensor_data_t *sd = (sensor_data_t *)arg;
     uint32_t error;
-    int16_t temp_val = 0;
+    uint16_t fan_rpm = 0;
+    uint8_t fan_tach[2] = {0};
     uint8_t dev, id = sd->local_sensor_id;
 
     /* TODO:
@@ -243,7 +270,7 @@ void adt7470_scan_function(void *arg)
         return;
     }
 
-    I2C_i2c1_slave_dev_set(&adt7470_dev[dev], ADT7470_REG_TACH1 + (id * 2), (uint8_t*)&temp_val, 2);
+    I2C_i2c1_slave_dev_set(&adt7470_dev[dev], ADT7470_REG_TACH1 + (id * 2), (uint8_t*)&fan_tach[0], 2);
     error = I2C_i2c1_master_read(&adt7470_dev[dev]);
     if (error != 0) {
         sd->unavailable = 1;
@@ -251,12 +278,12 @@ void adt7470_scan_function(void *arg)
     } else {
         sd->unavailable = 0;
     }
-    //temp_val = 0xff17;      // 1758RPM (just for test)
 
-    temp_val = BSWAP_16(temp_val);
+    //temp_val = 0xff17;      // 1758RPM (just for test)
+    fan_rpm = ((fan_tach[0]<<8)|fan_tach[1]);
 
     sd->last_sensor_reading =
-        (uint8_t)SENSOR_VAL2RAW(TACH_RAW_2_VAL(temp_val, 2),
+        (uint8_t)SENSOR_VAL2RAW(TACH_RAW_2_VAL(fan_rpm, 2),
                 ADT7470_VAL_M,
                 ADT7470_VAL_B,
                 ADT7470_VAL_K1,
@@ -425,6 +452,7 @@ void adt7470_init_sensor_record(uint8_t i)
     adt7470_sd[i].sensor_id = 0;
     adt7470_sd[i].last_sensor_reading = 0;
     adt7470_sd[i].scan_period = 0;
+    adt7470_sd[i].init_function = adt7470_init_function;
     adt7470_sd[i].scan_function = adt7470_scan_function;
     adt7470_sd[i].sett_function = adt7470_sett_function;
     adt7470_sd[i].event_messages_enabled = 1;
@@ -447,6 +475,7 @@ void adt7470_init(void)
     for (i = 0; i < MAX_ADT7470_COUNT; i++)
     {
         adt7470_init_sensor_record(i);
+        adt7470_init_function((void*)&adt7470_sd[i]);
     }
 }
 

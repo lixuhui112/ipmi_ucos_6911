@@ -95,18 +95,18 @@ I2C_DEVICE max6635_dev[MAX_MAX6635_SENSOR_COUNT];
 const IO_INT max6635_over_int[MAX_MAX6635_SENSOR_COUNT] =
 {
     {
-        .peripheral     = GPIO_CHIP_MAX6635_PERIPH0_BASE,
-        .port           = GPIO_CHIP_MAX6635_OVER0_PORT,
-        .pins           = GPIO_CHIP_MAX6635_OVER0_PIN,
-        .interrupt      = GPIO_CHIP_MAX6635_OVER0_INT,
+        .peripheral     = GPIO_CHIP_MAX6635_0_PERIPH_BASE,
+        .port           = GPIO_CHIP_MAX6635_0_OVER_PORT,
+        .pins           = GPIO_CHIP_MAX6635_0_OVER_PIN,
+        .interrupt      = GPIO_CHIP_MAX6635_0_OVER_INT,
         .handler        = max6635_over_handler,
         .param          = &max6635_sd[0],
     },
     {
-        .peripheral     = GPIO_CHIP_MAX6635_PERIPH1_BASE,
-        .port           = GPIO_CHIP_MAX6635_OVER1_PORT,
-        .pins           = GPIO_CHIP_MAX6635_OVER1_PIN,
-        .interrupt      = GPIO_CHIP_MAX6635_OVER1_INT,
+        .peripheral     = GPIO_CHIP_MAX6635_1_PERIPH_BASE,
+        .port           = GPIO_CHIP_MAX6635_1_OVER_PORT,
+        .pins           = GPIO_CHIP_MAX6635_1_OVER_PIN,
+        .interrupt      = GPIO_CHIP_MAX6635_1_OVER_INT,
         .handler        = max6635_over_handler,
         .param          = &max6635_sd[1],
     },
@@ -114,18 +114,18 @@ const IO_INT max6635_over_int[MAX_MAX6635_SENSOR_COUNT] =
 const IO_INT max6635_alert_int[MAX_MAX6635_SENSOR_COUNT] =
 {
     {
-        .peripheral     = GPIO_CHIP_MAX6635_PERIPH0_BASE,
-        .port           = GPIO_CHIP_MAX6635_ALERT0_PORT,
-        .pins           = GPIO_CHIP_MAX6635_ALERT0_PIN,
-        .interrupt      = GPIO_CHIP_MAX6635_ALERT0_INT,
+        .peripheral     = GPIO_CHIP_MAX6635_0_PERIPH_BASE,
+        .port           = GPIO_CHIP_MAX6635_0_ALERT_PORT,
+        .pins           = GPIO_CHIP_MAX6635_0_ALERT_PIN,
+        .interrupt      = GPIO_CHIP_MAX6635_0_ALERT_INT,
         .handler        = max6635_alert_handler,
         .param          = &max6635_sd[0],
     },
     {
-        .peripheral     = GPIO_CHIP_MAX6635_PERIPH1_BASE,
-        .port           = GPIO_CHIP_MAX6635_ALERT1_PORT,
-        .pins           = GPIO_CHIP_MAX6635_ALERT1_PIN,
-        .interrupt      = GPIO_CHIP_MAX6635_ALERT1_INT,
+        .peripheral     = GPIO_CHIP_MAX6635_1_PERIPH_BASE,
+        .port           = GPIO_CHIP_MAX6635_1_ALERT_PORT,
+        .pins           = GPIO_CHIP_MAX6635_1_ALERT_PIN,
+        .interrupt      = GPIO_CHIP_MAX6635_1_ALERT_INT,
         .handler        = max6635_alert_handler,
         .param          = &max6635_sd[1],
     },

@@ -19,7 +19,6 @@
 #include "app/lib_uart.h"
 #include "ucos_ii.h"
 
-#if defined(IPMI_MODULES_UART0_DEBUG) || defined(IPMI_MODULES_UART1_ICMB)
 //*****************************************************************************
 //
 // Define the ICMB(UART1) or DEBUG(UART0) TX/RX Buffer
@@ -34,9 +33,7 @@ static unsigned char uart1_tx_idx;
 static unsigned char uart1_rx_len;
 static unsigned char uart1_tx_len;
 static unsigned long uart1_rx_timestamp;
-#endif
 
-#ifdef IPMI_MODULES_UART0_DEBUG
 //*****************************************************************************
 //
 // The UART0 interrupt handler.
@@ -137,18 +134,15 @@ void UART_uart0_init(void)
                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                          UART_CONFIG_PAR_NONE));
 
-    // Initialize the UART for console I/O. (DEBUG)
-    //UARTStdioInit(0);
-
     // Enable the UART interrupt.
-    UARTIntRegister(UART0_BASE, UART_uart0_int_handler);
+    //UARTIntRegister(UART0_BASE, UART_uart0_int_handler);
     IntEnable(INT_UART0);
     UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);
 }
 
 int UART_uart0_read(char *buf, unsigned long *size)
 {
-    unsigned long i;
+    unsigned char i;
 
     DEBUG("debug read:");
     for (i = 0; i < uart1_rx_len; i++)
@@ -165,7 +159,7 @@ int UART_uart0_read(char *buf, unsigned long *size)
 
 int UART_uart0_write(char *buf, unsigned long size)
 {
-    unsigned long i, j;
+    unsigned char i, j;
 
     // 先写前导码
     for (i = 0; i < sizeof(IPMI_FRAME_CHAR); i++)
@@ -195,11 +189,7 @@ int UART_uart0_write(char *buf, unsigned long size)
     return 0;
 }
 
-#endif
 
-
-
-#ifdef IPMI_MODULES_UART1_ICMB
 //*****************************************************************************
 //
 // The UART1 interrupt handler.
@@ -277,7 +267,7 @@ void UART_uart1_int_handler(void)
 
 int UART_uart1_read(char *buf, unsigned long *size)
 {
-    unsigned long i;
+    unsigned char i;
 
     for (i = 0; i < uart1_rx_len; i++)
     {
@@ -291,7 +281,7 @@ int UART_uart1_read(char *buf, unsigned long *size)
 
 int UART_uart1_write(char *buf, unsigned long size)
 {
-    unsigned long i, j;
+    unsigned char i, j;
 
     // 先写前导码
     for (i = 0; i < sizeof(IPMI_FRAME_CHAR); i++)
@@ -344,18 +334,15 @@ void UART_uart1_init(void)
     UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(), 115200,
                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                          UART_CONFIG_PAR_NONE));
-    UARTStdioInit(1);
+    //UARTStdioInit(1);
 
     // Enable the UART interrupt.
     //UARTIntRegister(UART1_BASE, UART_uart1_int_handler);
     IntEnable(INT_UART1);
     UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT);
 }
-#endif
 
 
-
-#ifdef IPMI_MODULES_UART2_SOL
 #define UART2_BUF_SIZE  0x80
 static unsigned char uart2_rx_buf[UART2_BUF_SIZE];
 static unsigned char uart2_tx_buf[UART2_BUF_SIZE];
@@ -427,23 +414,72 @@ void UART_uart2_init(void)
 
 int UART_uart2_read(char *buf, unsigned long *size)
 {
+    unsigned char i;
+
+    for (i = 0; i < uart2_rx_len; i++)
+    {
+        buf[i] = uart2_rx_buf[i];
+    }
+
+    *size = uart2_rx_len;
+
     return 0;
 }
 
 int UART_uart2_write(char *buf, unsigned long size)
 {
+    unsigned char i;
+
+    for (i = 0; i < size && i < UART2_BUF_SIZE; i++)
+    {
+        uart2_tx_buf[i] = buf[i];
+    }
+
+    uart2_tx_len = i;
+
+    for (uart2_tx_idx = 0; uart2_tx_idx < uart2_tx_len; uart2_tx_idx++)
+    {
+        UARTCharPut(UART2_BASE, uart2_tx_buf[uart2_tx_idx]);
+    }
+
+    uart2_tx_len = 0;
+    uart2_tx_idx = 0;
+
     return 0;
 }
-#endif
 
 
-#define DEBUG_UART_PORT UART1_BASE
 //*****************************************************************************
 //
-// Send a string to the UART.
+// IPMI Debug port Module
 //
 //*****************************************************************************
-void DEBUG_UARTSend(const unsigned char *pucBuffer)
+#define DEBUG_UART_PORT UART0_BASE
+
+void DEBUG_UART_init(void)
+{
+    // Enable GPIO port which is used for UART0 pins.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+    // Configure the pin muxing for UART0 functions
+    // on port A0/A1.
+    GPIOPinConfigure(GPIO_PA0_U0RX);
+    GPIOPinConfigure(GPIO_PA1_U0TX);
+
+    // Select the alternate (UART) function for these pins.
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    // Configure the UART0 for 115,200, 8-N-1 operation.
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 115200,
+                        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+                         UART_CONFIG_PAR_NONE));
+
+    // Initialize the UART for console I/O. (DEBUG)
+    UARTStdioInit(0);
+}
+
+void DEBUG_UART_send(const unsigned char *pucBuffer)
 {
     //
     // Loop while there are more characters to send.
@@ -465,15 +501,13 @@ void DEBUG_UARTSend(const unsigned char *pucBuffer)
 //*****************************************************************************
 void UART_init(void)
 {
-#ifdef IPMI_MODULES_UART0_DEBUG
+#if (defined(IPMI_MODULES_UART0_DEBUG))
     UART_uart0_init();
 #endif
-
-#ifdef IPMI_MODULES_UART1_ICMB
+#if (defined(IPMI_MODULES_UART1_ICMB))
     UART_uart1_init();
 #endif
-
-#ifdef IPMI_MODULES_UART2_SOL
+#if (defined(IPMI_MODULES_UART2_SOL))
     UART_uart2_init();
 #endif
 }

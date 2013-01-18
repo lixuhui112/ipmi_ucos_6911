@@ -16,13 +16,30 @@
 #define BSWAP_16(x)             ((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
 #define BSWAP_32(x)             ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8) |\
                                  (((x) & 0x0000ff00) << 8) | (((x) & 0x000000ff) << 24))
-
+#ifdef __LITTLE_ENDIAN__
+#define B16_H2L(X)              (X)             /* 16 bit to little endian */
+#define B32_H2L(X)              (X)             /* 32 bit to little endian */
+#define B16_H2B(X)              BSWAP_16(X)     /* 16 bit to big endian */
+#define B32_H2B(X)              BSWAP_32(X)     /* 32 bit to big endian */
+#define B16_L2H(X)              (X)             /* 16 bit little to host */
+#define B32_L2H(X)              (X)             /* 32 bit little to host */
+#define B16_B2H(X)              BSWAP_16(X)     /* 16 bit big endian to host */
+#define B32_B2H(X)              BSWAP_32(X)     /* 32 bit big endian to host */
+#else
+#define B16_H2L(X)              BSWAP_16(X)     /* 16 bit to little endian */
+#define B32_H2L(X)              BSWAP_32(X)     /* 32 bit to little endian */
+#define B16_H2B(X)              (X)             /* 16 bit to big endian */
+#define B32_H2B(X)              (X)             /* 32 bit to big endian */
+#define B16_L2H(X)              BSWAP_16(X)     /* 16 bit little to host */
+#define B32_L2H(X)              BSWAP_32(X)     /* 32 bit little to host */
+#define B16_B2H(X)              (X)             /* 16 bit big endian to host */
+#define B32_B2H(X)              (X)             /* 32 bit big endian to host */
+#endif
 
 extern void max6635_init(void);
 extern void ucd9081_init(void);
 extern void ina230_init(void);
 extern void adt7470_init(void);
-extern void at24xx_init(void);
 extern void key_init(void);
 extern void mc_locator_init(void);
 
@@ -45,7 +62,16 @@ void ipmi_common_test_self(void);
 void led_start(void);
 void led_change(uint8_t period);
 
-void ipmi_sensor_init(void);
+extern void at24xx_init(void);
+extern uint32_t at24xx_read(uint32_t addr, uint8_t *buffer, uint32_t size);
+extern uint32_t at24xx_write(uint32_t addr, uint8_t *buffer, uint32_t size);
+extern uint32_t at24xx_clear(uint32_t addr, uint32_t size);
+
+extern void ipmi_sel_init(void);
+extern void ipmi_sdr_init(void);
+
+void ipmi_modules_init(void);
+void ipmi_sensors_init(void);
 
 #endif  // __IPMI_COMMON_H__
 

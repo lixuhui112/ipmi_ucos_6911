@@ -1,4 +1,5 @@
 Debug
+Release
 /driverlib/ewarm
 *.dep
 settings

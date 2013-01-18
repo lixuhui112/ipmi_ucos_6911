@@ -11,12 +11,7 @@
 #include "ucos_ii.h"
 #include <inttypes.h>
 
-#define IPMB_SLAVE_ADDR_DEF         0x07
-#define I2C_CHIP_ADDR_UCD9081       0x00
-#define I2C_CHIP_ADDR_MAX6635_1     0x00
-#define I2C_CHIP_ADDR_MAX6635_2     0x00
-#define I2C_CHIP_ADDR_PCF8563       0x00
-#define I2C_CHIP_ADDR_AT24CXX       0x00
+#define IPMB_SLAVE_ADDR_BASE        0x70    // I2C0从地址基址
 
 #define I2C_STAT_IDLE               0       // 空闲状态
 #define I2C_STAT_ADDR               1       // 发送数据地址状态
@@ -47,34 +42,34 @@ typedef struct
 } I2C_DRIVER;
 
 void I2C_init(void);
-int I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
+uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
         unsigned char addr_size, unsigned long data_size, char *buf);
-int I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
+uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned long data_addr,
         unsigned char addr_size, unsigned long data_size, char *buf);
 
 void I2C_i2c0_ipmb_init(void);
-int I2C_i2c0_ipmb_read(char *buf, unsigned long *size);
-int I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size);
-int I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr);
-char I2C_i2c0_ipmb_self_addr_get(void);
-int I2C_i2c0_read_write(I2C_DEVICE *dev, uint8_t flags);
+uint32_t I2C_i2c0_ipmb_read(char *buf, unsigned long *size);
+uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size);
+void I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr);
+uint8_t I2C_i2c0_ipmb_self_addr_get(void);
+uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, uint8_t flags);
 void I2C_i2c0_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size);
 void I2C_i2c0_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_buf, uint32_t data_size);
 #define I2C_i2c0_master_read(d)     I2C_i2c0_read_write(d, I2C_CMD_RECV)
 #define I2C_i2c0_master_write(d)    I2C_i2c0_read_write(d, I2C_CMD_SEND)
 
 void I2C_i2c1_pmb_init(void);
-int I2C_i2c1_pmb_read(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size);
-int I2C_i2c1_pmb_write(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size);
-int I2C_i2c1_read_write(I2C_DEVICE *dev, uint8_t flags);
+uint32_t I2C_i2c1_pmb_read(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size);
+uint32_t I2C_i2c1_pmb_write(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size);
+uint32_t I2C_i2c1_read_write(I2C_DEVICE *dev, uint8_t flags);
 void I2C_i2c1_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size);
 void I2C_i2c1_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_buf, uint32_t data_size);
 #define I2C_i2c1_master_read(d)     I2C_i2c1_read_write(d, I2C_CMD_RECV)
 #define I2C_i2c1_master_write(d)    I2C_i2c1_read_write(d, I2C_CMD_SEND)
 
 void I2C_i2c1_soft_pmb_init(void);
-int I2C_i2c1_soft_pmb_read(unsigned slave_addr, char *buf, unsigned long *size);
-int I2C_i2c1_soft_pmb_write(unsigned slave_addr, char *buf, unsigned long size);
+uint32_t I2C_i2c1_soft_pmb_read(unsigned slave_addr, char *buf, unsigned long *size);
+uint32_t I2C_i2c1_soft_pmb_write(unsigned slave_addr, char *buf, unsigned long size);
 
 
 

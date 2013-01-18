@@ -24,7 +24,7 @@
 #define IPMI_NETFN_STORAGE                          0xa
 #define IPMI_NETFN_TRANSPORT                        0xc
 #define IPMI_NETFN_PICMG                            0x2c
-#define IPMI_NETFN_DCGRP		                    0x2c
+#define IPMI_NETFN_DCGRP                            0x2c
 #define IPMI_NETFN_ISOL                             0x34
 #define IPMI_NETFN_TSOL                             0x30
 
@@ -60,7 +60,7 @@
 #define IPMI_CC_NOT_SUPPORTED_PRESENT_STATE         0xd5    // "Command not supported in present state"
 #define IPMI_CC_ILLEGAL_COMMAND_DISABLED            0xd6    // "Cannot execute command, command disabled"
 #define IPMI_CC_UNSPECIFIED_ERROR                   0xff    // "Unspecified error"
-
+#define IPMI_CC_SEL_ERASE_PROGRESS                  0x81    // "Cannot execute command, SEL erase in progress"
 
 /* CHANNEL NUMBERS */
 /* Each interface has a channel number that is used when configuring the channel
@@ -547,7 +547,10 @@ extern unsigned long device_available;
 #include "ipmi_lib/ipmi_cfg.h"
 #include "ipmi_lib/ipmi_chassis.h"
 #include "ipmi_lib/ipmi_se.h"
+#include "ipmi_lib/ipmi_sel.h"
+#include "ipmi_lib/ipmi_sdr.h"
 #include "ipmi_lib/ipmi_app.h"
 
 #endif  /* _IPMI_H_ */
+
 

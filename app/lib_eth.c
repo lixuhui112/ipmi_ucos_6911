@@ -16,7 +16,7 @@
 #include "ipmi_lib/ipmi_cfg.h"
 #include "third_party/uip-1.0/uip/uip.h"
 #include "third_party/uip-1.0/uip/uip_arp.h"
-#ifdef IPMI_MODULES_ETH_LAN
+
 //*****************************************************************************
 //
 // The Address of Hardware and Internet.
@@ -210,8 +210,6 @@ void ETH_eth0_init(void)
     //OSTaskCreate
 }
 
-#endif /* IPMI_MODULES_ETH_LAN */
-
 
 
 //*****************************************************************************
@@ -221,8 +219,8 @@ void ETH_eth0_init(void)
 //*****************************************************************************
 void ETH_init(void)
 {
-#ifdef IPMI_MODULES_ETH_LAN
+#if (defined(IPMI_MODULES_ETH_LAN))
     ETH_eth0_init();
-#endif /* IPMI_MODULES_ETH_LAN */
+#endif
 }
 

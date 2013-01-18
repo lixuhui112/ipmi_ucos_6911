@@ -37,7 +37,6 @@ extern uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE];
 #include "app/lib_uart.h"
 #include "app/lib_eth.h"
 #include "app/lib_io.h"
-#include "app/lib_slot.h"
 
 
 // SSIF½Ó¿Ú¶ÁÐ´º¯Êý

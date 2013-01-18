@@ -12,6 +12,7 @@
 #include <inc/hw_types.h>
 #include <string.h>
 #include "app/lib_common.h"
+#include "app/lib_i2c.h"
 #include "ipmi_lib/ipmi.h"
 #include "ucos_ii.h"
 #include "third_party/ustdlib.h"
@@ -34,7 +35,7 @@ static OS_STK period_task_stk[STK_SIZE];
 //
 //*****************************************************************************
 static OS_EVENT *ipmi_recv_sem;
-static OS_EVENT *ipmi_send_sem;
+//static OS_EVENT *ipmi_send_sem;
 
 
 //*****************************************************************************
@@ -47,6 +48,15 @@ static OS_EVENT *ipmi_req_que;
 static OS_EVENT *ipmi_rsp_que;
 void *ipmi_req_que_pool[IPMI_CMD_QUE_SIZE];
 void *ipmi_rsp_que_pool[IPMI_CMD_QUE_SIZE];
+
+
+//*****************************************************************************
+//
+// Defines timer for the ipmi task
+//
+//*****************************************************************************
+#define IPMI_TIMER_PERIOD       10
+OS_TMR *ipmi_timer;
 
 
 //*****************************************************************************
@@ -399,22 +409,152 @@ void ipmi_cmd_send_task(void *args)
 
 void ipmi_period_task(void *args)
 {
-    //uint32_t poh;
-    //ipmi_common_get_poh(&poh);
-    //(void)poh;
-    ipmi_common_test_self();
-    OSTimeDlyHMSM(0, 1, 0, 0);
+#if 0
+    // test for eeprom
+
+    uint8_t val[32] = { 0 };
+    uint8_t i;
+    uint32_t error, addr;
+    I2C_DEVICE at24xx_dev;
+
+    I2C_i2c1_slave_dev_init(&at24xx_dev, 0x50, 2);
+
+#if 0
+    // set val to i
+    for (i = 0; i < 32; i++) {
+        val[i] = i;
+    }
+
+    // write to eeprom
+    I2C_i2c1_slave_dev_set(&at24xx_dev, 0x1800, (uint8_t*)&val[0], 32);
+    error = I2C_i2c1_master_write(&at24xx_dev);
+    if (error)
+    {
+        DEBUG("write error=0x%x\r\n", error);
+    }
+    else
+    {
+        DEBUG("write to eeprom ok\r\n");
+    }
+
+    OSTimeDlyHMSM(0, 0, 1, 0);
+#endif
+
+#if 0
+    // clear eeprom
+    error = at24xx_clear(0x1800, 0x800);
+    if (error)
+    {
+        DEBUG("clear error=0x%x\r\n", error);
+    }
+    else
+    {
+        DEBUG("clear OK\r\n");
+    }
+#endif
+
+    // read eeprom
+    for (addr = 0x1800; addr < 0x2000; addr += 32) {
+
+        // clear val
+        for (i = 0; i < 32; i++) {
+            val[i] = 0;
+        }
+
+        // read from eeprom
+        error = at24xx_read(addr, val, 32);
+        //I2C_i2c1_slave_dev_set(&at24xx_dev, addr, (uint8_t*)&val[0], 32);
+        //error = I2C_i2c1_master_read(&at24xx_dev);
+        if (error)
+        {
+            DEBUG("read error=0x%x\r\n", error);
+        }
+        else
+        {
+            // show the read
+            for (i = 0; i < 32; i++) {
+                if (i % 8 == 0) {
+                    DEBUG("\r\n0x%04x ", addr+i);
+                }
+                DEBUG("0x%02x ", val[i]);
+            }
+        }
+    }
+
+
+    while (1)
+    {
+        OSTimeDlyHMSM(0, 0, 1, 0);
+    }
+#endif
+
+
+#if 0
+    // test for i2c0/ipmb
+    I2C_DEVICE ipmb_dev;
+    uint32_t error;
+    uint8_t buffer[4] = {0x01, 0x02, 0x03, 0x04};
+
+    I2C_i2c0_slave_dev_init(&ipmb_dev, 0x70, 1);
+
+#if 1
+    while (1)
+    {
+        // write to i2c0
+        I2C_i2c0_slave_dev_set(&ipmb_dev, 0x00, (uint8_t*)&buffer[0], 4);
+        error = I2C_i2c0_master_write(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        OSTimeDlyHMSM(0, 0, 3, 0);
+    }
+#endif
+
+#if 0
+    while (1)
+    {
+        // read device id
+        temp_val[0] = temp_val[1] = 0;
+        I2C_i2c1_slave_dev_set(&adt7470_dev, 0x3d, (uint8_t*)&temp_val[0], 1);
+        error = I2C_i2c1_master_read(&adt7470_dev);
+        if (error)
+        {
+            DEBUG("error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("device id=0x%x\t", temp_val[0]);
+        }
+        OSTimeDlyHMSM(0, 0, 1, 0);
+
+        DEBUG("\r\n");
+    }
+#endif
+#endif
+
+#if 1
+    // test empty
+    while (1)
+    {
+        OSTimeDlyHMSM(0, 0, 1, 0);
+    }
+#endif
+}
+
+extern uint32_t g_sel_time;
+void ipmi_timer_task(void *ptmr, void *param)
+{
+    g_sel_time++;
 }
 
 void ipmi_task_main(void *args)
 {
-    //unsigned long led = 0;
-    //unsigned long cnt = 0;
-    //char str[32];
+    INT8U err;
 
     // 读写任务信号量
     ipmi_recv_sem = OSSemCreate(0);
-    ipmi_send_sem = OSSemCreate(0);
+    //ipmi_send_sem = OSSemCreate(0);
 
     // IPMI请求相应消息队列
     ipmi_req_que = OSQCreate((void**)&ipmi_req_que_pool, IPMI_CMD_QUE_SIZE);
@@ -423,23 +563,28 @@ void ipmi_task_main(void *args)
     // IPMI上下文缓冲池
     memset(ipmi_ctx_pool, 0, sizeof(ipmi_ctx_pool));
 
-    ipmi_sensor_init();
+    ipmi_modules_init();
+    ipmi_sensors_init();
 
     // IPMI任务
     OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
     OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
-    //OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
+    OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
 
-    // 定时器
+    // IPMI秒定时器
+    ipmi_timer = OSTmrCreate(0, IPMI_TIMER_PERIOD, OS_TMR_OPT_PERIODIC, ipmi_timer_task, NULL, "ipmi_timer", &err);
+    if (err == OS_ERR_NONE)
+    {
+        OSTmrStart(ipmi_timer, &err);
+    }
+
+    // LED定时器
     led_start();
 
     while (1)
     {
         OSTimeDlyHMSM(0, 0, 1, 0);
-        //IO_cpu_led_set(led);
-        //usnprintf(str, 32, "cnt=%d\r\n", cnt++);
-        //UARTprintf(str);
     }
 
 }

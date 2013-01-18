@@ -19,8 +19,7 @@
 #include "ucos_ii.h"
 #include "third_party/ustdlib.h"
 
-#ifdef IPMI_MODULES_SPI1_SSIF
-#define SPI_BUF_SIZE            0x80
+#define SPI_BUF_SIZE 0x80
 static unsigned char spi_rx_buf[SPI_BUF_SIZE];
 static unsigned char spi_tx_buf[SPI_BUF_SIZE];
 static unsigned char spi_rx_idx;
@@ -47,7 +46,7 @@ void SPI_spi1_int_handler(void)
     static unsigned char spi1_op = 0;
     static unsigned char spi1_size = 0;
     //static unsigned char onoff = 0;
-    char cntbuf[16];
+    //char cntbuf[16];
 
     status = SSIIntStatus(SSI1_BASE, true);        // »ñÈ¡ÖÐ¶Ï×´Ì¬
     if (!status)
@@ -314,10 +313,8 @@ int SPI_spi1_write(char *buf, unsigned long size)
 
     return 0;
 }
-#endif
 
 
-#ifdef IPMI_MODULES_SPI0_CPLD
 //*****************************************************************************
 //
 // Init SPI0 hardware to FPGA(MASTER) as Normal
@@ -641,8 +638,6 @@ void SPI_spi0_master_init(void)
     SSIEnable(SSI0_BASE);
 }
 
-#endif
-
 
 
 //*****************************************************************************
@@ -652,12 +647,11 @@ void SPI_spi0_master_init(void)
 //*****************************************************************************
 void SPI_init(void)
 {
-#ifdef IPMI_MODULES_SPI1_SSIF
-    SPI_spi1_slaver_init();
-#endif
-
-#ifdef IPMI_MODULES_SPI0_CPLD
+#if (defined(IPMI_MODULES_SPI0_CPLD))
     SPI_spi0_master_init();
+#endif
+#if (defined(IPMI_MODULES_SPI1_SSIF))
+    SPI_spi1_slaver_init();
 #endif
 }
 

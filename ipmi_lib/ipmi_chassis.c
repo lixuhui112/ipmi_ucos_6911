@@ -70,7 +70,8 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
 
     switch (ctx_cmd->req.msg.cmd)
     {
-        case CHASSIS_GET_CAPABILITIES:
+        /* Chassis Device Commands ******************************************/
+        case CHASSIS_GET_CAPABILITIES:                      /* 0x00 */
             {
                 struct ipmi_chassis_capabilities_rsp *capa_rsp;
 
@@ -88,7 +89,7 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
             }
             break;
 
-        case CHASSIS_GET_STATUS:
+        case CHASSIS_GET_STATUS:                            /* 0x01 */
             {
                 struct ipmi_chassis_status_rsp *status_rsp;
 
@@ -105,7 +106,7 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
             }
             break;
 
-        case CHASSIS_CONTROL:
+        case CHASSIS_CONTROL:                               /* 0x02 */
             {
                 char reqcmd = ctx_cmd->req.data[0];
                 switch (reqcmd & 0x0f)
@@ -136,7 +137,7 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
             }
             break;
 
-        case CHASSIS_IDENTIFY:
+        case CHASSIS_IDENTIFY:                              /* 0x04 */
             {
                 switch (ctx_cmd->req_len)
                 {
@@ -157,7 +158,7 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
             }
             break;
 
-        case CHASSIS_GET_POH_COUNTER:
+        case CHASSIS_GET_POH_COUNTER:                       /* 0x0f */
             {
                 uint32_t poh;
 
@@ -174,14 +175,14 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
             }
             break;
 
-        case CHASSIS_RESET:
-        case CHASSIS_SET_CAPABILITIES:
-        case CHASSIS_SET_POW_RESTORE_POLICY:
-        case CHASSIS_GET_RESTART_CAUSE:
-        case CHASSIS_SET_SYS_BOOT_OPT:
-        case CHASSIS_GET_SYS_BOOT_OPT:
-        case CHASSIS_SET_FP_BUTTON_ENABLE:
-        case CHASSIS_SET_POW_CYCLE_INTERVAL:
+        case CHASSIS_RESET:                                 /* 0x03 */
+        case CHASSIS_SET_CAPABILITIES:                      /* 0x05 */
+        case CHASSIS_SET_POW_RESTORE_POLICY:                /* 0x06 */
+        case CHASSIS_GET_RESTART_CAUSE:                     /* 0x07 */
+        case CHASSIS_SET_SYS_BOOT_OPT:                      /* 0x08 */
+        case CHASSIS_GET_SYS_BOOT_OPT:                      /* 0x09 */
+        case CHASSIS_SET_FP_BUTTON_ENABLE:                  /* 0x0a */
+        case CHASSIS_SET_POW_CYCLE_INTERVAL:                /* 0x0b */
         default:
             // response C1h for no support cmd
             ipmi_cmd_invalid(ctx_cmd);
