@@ -450,7 +450,9 @@
         </option>
         <option>
           <name>ADefines</name>
-          <state></state>
+          <state>ewarm</state>
+          <state>PART_LM3S6911</state>
+          <state>BOARD_6911_FAN</state>
         </option>
         <option>
           <name>AList</name>
@@ -546,7 +548,13 @@
         </option>
         <option>
           <name>AUserIncludes</name>
-          <state></state>
+          <state>$PROJ_DIR$\.</state>
+          <state>$PROJ_DIR$\app</state>
+          <state>$PROJ_DIR$\ucos\src</state>
+          <state>$PROJ_DIR$\ucos\ports</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\uip</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\apps</state>
+          <state>$PROJ_DIR$\third_party\uip-1.0\apps\httpd</state>
         </option>
         <option>
           <name>AExtraOptionsCheckV2</name>
@@ -1865,6 +1873,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_temp.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\ipmi_lib\ipmi_timer.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_transport.c</name>

@@ -243,7 +243,7 @@
 #define SET_FORWARDED_COMMANDS          0x31
 #define GET_FORWARDED_COMMANDS          0x32
 #define ENABLE_FORWARDED_COMMANDS       0x33
-
+#define NOTIFY_RMC_INFO                 0x40
 
 //*****************************************************************************
 //

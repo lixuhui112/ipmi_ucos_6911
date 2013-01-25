@@ -19,8 +19,8 @@
 #define LOGIC_SITOK_REG                 0x0003      /* 在位状态         */
 #define LOGIC_POH_REG                   0x0004      /* 系统运行时间     */
 
-#define FPGA_R_BIT      0x0000      /* 读标志位 */
-#define FPGA_W_BIT      0x8000      /* 写标志位 */
+#define FPGA_R_BIT                      0x0000      /* 读标志位         */
+#define FPGA_W_BIT                      0x8000      /* 写标志位         */
 
 #define LOGIC_2_R_FPGA(addr)    (BSWAP_16(addr | FPGA_R_BIT))
 #define LOGIC_2_W_FPGA(addr)    (BSWAP_16(addr | FPGA_W_BIT))

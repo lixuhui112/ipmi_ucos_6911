@@ -16,6 +16,7 @@
 #include "ipmi_lib/ipmi.h"
 
 
+/* sdr record type macros */
 #define SDR_RECORD_TYPE_FULL_SENSOR                 0x01
 #define SDR_RECORD_TYPE_COMPACT_SENSOR              0x02
 #define SDR_RECORD_TYPE_EVENTONLY_SENSOR            0x03
@@ -1195,9 +1196,9 @@ struct sdr_device_capabilities {
 struct mc_locator_record_key {
     /* RECORD KEY BYTES */
 #ifdef __LITTLE_ENDIAN__
-    uint8_t rsv1:1,                 /* [0]
-                                       - 0b = ID is IPMB Slave Address,
-                                       - 1b = system software ID */
+    uint8_t alive:1,                /* [0]
+                                       - 0b = Device is not alive,
+                                       - 1b = Device is alive */
             dev_slave_addr:7;       /* [7:1]
                                        7-bit I2C Slave Address of device on channel. */
 #else
@@ -1254,9 +1255,10 @@ typedef struct sdr_record_entry {
 typedef struct sensor_data {
     uint8_t sensor_id;
     uint8_t local_sensor_id;
-    sdr_record_entry_t *sdr_record;
     uint8_t last_sensor_reading;
-    uint8_t scan_period;                        /* time between each sensor scan in seconds, 0 = no scan */
+    uint32_t scan_period;                       /* time between each sensor scan in seconds, 0 = no scan */
+    uint32_t last_scan_timestamp;
+    sdr_record_entry_t *sdr_record;
     void (*init_function)(void *);              /* the routine that does the sensor sdr init */
     void (*scan_function)(void *);              /* the routine that does the sensor scan */
     void (*sett_function)(void *);              /* the routine that does set the register of chip */
@@ -1278,7 +1280,8 @@ typedef struct sensor_data {
             set_lower_non_critical_threshold:1;
 #endif
 #ifdef __LITTLE_ENDIAN__
-    uint8_t recv2:5,
+    uint8_t recv2:4,
+            retry:1,
             unavailable:1,
             sensor_scanning_enabled:1,
             event_messages_enabled:1;
@@ -1286,7 +1289,8 @@ typedef struct sensor_data {
     uint8_t event_messages_enabled:1,           /* 0b = All Event Messages disabled from this sensor */
             sensor_scanning_enabled:1,          /* 0b = sensor scanning disabled */
             unavailable:1,                      /* 1b = reading/state unavailable */
-            recv2:5;
+            retry:1,
+            recv2:4;
 #endif
 #ifdef __LITTLE_ENDIAN__
     uint8_t lower_non_critical_threshold:1,

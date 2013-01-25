@@ -20,10 +20,10 @@
 #define ADT7470_SLAVE_ADDR_2    0x2f        //
 
 #define MAX6635_SLAVE_ADDR_1    0x48        // 温度传感器芯片地址1
-#define MAX6635_SLAVE_ADDR_2    0x49        //
+#define MAX6635_SLAVE_ADDR_2    0x4a        //0x49        //
 
-#define INA230_SLAVE_ADDR_1     0x66        // 电源板电压电流监控芯片地址
-#define INA230_SLAVE_ADDR_2     0x67
+#define INA230_SLAVE_ADDR_1     0x40        // 电源板电压电流监控芯片地址
+#define INA230_SLAVE_ADDR_2     0x41
 
 #define UCD9081_SLAVE_ADDR      0x65        // 交换板电压监控芯片地址
 

@@ -8,6 +8,7 @@
 #define __LIB_IO_H__
 
 #include "inc/hw_types.h"
+#include "driverlib/gpio.h"
 #include <inttypes.h>
 
 typedef void (*handler_t)(void *);

@@ -12,10 +12,12 @@
 
 #include <stdarg.h>
 #include <inttypes.h>
+#include "inc/hw_types.h"
 #include "third_party/uartstdio.h"
 
 #define IPMI_DEBUG
-#undef  IPMI_DEBUG
+//#undef  IPMI_DEBUG
+
 #ifdef  IPMI_DEBUG
 #define DEBUG(msg...)   UARTprintf(##msg)
 #else

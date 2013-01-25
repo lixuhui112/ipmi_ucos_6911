@@ -27,25 +27,11 @@
 *
 ******************************************************************************/
 
+extern uint32_t g_sel_sdr_time;
+extern uint16_t g_sel_sdr_status;
 sel_event_header g_ipmi_sel_header;
-uint16_t g_sel_status = 0;
 uint16_t g_sel_reservation_id = 0;
-uint32_t g_sel_time = 0;
 
-void sel_status_set(uint16_t status)
-{
-    g_sel_status |= status;
-}
-
-void sel_status_clr(uint16_t status)
-{
-    g_sel_status &= ~status;
-}
-
-void sel_status_get(uint16_t *status)
-{
-    *status = g_sel_status;
-}
 
 uint16_t ipmi_get_valid_sel_record(uint16_t record_offset, uint16_t max_entry, uint16_t record_id, sel_event_record *sel_record)
 {
@@ -86,7 +72,7 @@ void ipmi_get_sel_info(struct ipmi_ctx *ctx_cmd)
     req->number_of_entries = B16_H2L(g_ipmi_sel_header.number_of_entries);
     req->free_space = B16_H2L(g_ipmi_sel_header.free_space);
     req->most_recent_addition_timestamp = B32_H2L(g_ipmi_sel_header.most_recent_addition_timestamp);
-    req->most_recent_erase_timestamp = B32_H2L(g_ipmi_sel_header.most_recent_addition_timestamp);
+    req->most_recent_erase_timestamp = B32_H2L(g_ipmi_sel_header.most_recent_erase_timestamp);
     req->operation_support = OVERFLOW_FLAG |
                              DELETE_SEL_COMMAND_SUPPORTED |
                              RESERVE_SEL_COMMAND_SUPPORTED |
@@ -110,7 +96,7 @@ void ipmi_get_sel_allocation_info(struct ipmi_ctx *ctx_cmd)
 
 void ipmi_reserve_sel(struct ipmi_ctx *ctx_cmd)
 {
-    if (g_sel_status & IPMI_SEL_ERASE_PROCESS) {
+    if (g_sel_sdr_status & IPMI_STORAGE_ERASE_PROCESS) {
         ipmi_cmd_err(ctx_cmd, IPMI_CC_SEL_ERASE_PROGRESS);
         return;
     }
@@ -213,7 +199,7 @@ void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     // auto set the sel record timestamp
     if ((new_sel.record_type == 0x02) || (new_sel.record_type >= 0xc0 && new_sel.record_type <= 0xdf)) {
-        new_sel.sel_type.standard_type.timestamp = B32_H2L(g_sel_time);
+        new_sel.sel_type.standard_type.timestamp = B32_H2L(g_sel_sdr_time);
     }
 
     // write the sel record to eeprom
@@ -237,7 +223,7 @@ void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sel_header.most_recent_addition_timestamp = B32_H2L(g_sel_time);
+    g_ipmi_sel_header.most_recent_addition_timestamp = B32_H2L(g_sel_sdr_time);
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -261,7 +247,7 @@ uint16_t ipmi_add_sel(struct standard_spec_sel_rec *standard_sel)
     memcpy(&new_sel.sel_type.standard_type, standard_sel, sizeof(struct standard_spec_sel_rec));
     new_sel.record_id = ++g_ipmi_sel_header.count_of_entries;
     new_sel.record_type = 0x02;
-    new_sel.sel_type.standard_type.timestamp = g_sel_time;
+    new_sel.sel_type.standard_type.timestamp = g_sel_sdr_time;
 
     // write the sel record to eeprom
     record_offset = IPMI_SEL_STORAGE_OFFSET + (g_ipmi_sel_header.last_entry_index * IPMI_MAX_SEL_BYTES);
@@ -283,7 +269,7 @@ uint16_t ipmi_add_sel(struct standard_spec_sel_rec *standard_sel)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sel_header.most_recent_addition_timestamp = g_sel_time;
+    g_ipmi_sel_header.most_recent_addition_timestamp = g_sel_sdr_time;
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -367,7 +353,7 @@ void ipmi_del_sel_entry(struct ipmi_ctx *ctx_cmd)
         if (record_id == 0xffff) {
             g_ipmi_sel_header.last_entry_index = IPMI_SEL_INDEX_DEC(g_ipmi_sel_header.last_entry_index);
         }
-        g_ipmi_sel_header.most_recent_erase_timestamp = g_sel_time;
+        g_ipmi_sel_header.most_recent_erase_timestamp = g_sel_sdr_time;
 
         // write the sel header to eeprom
         error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -387,7 +373,7 @@ void ipmi_get_sel_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sel_time_st *rsp = (struct sel_time_st *)(&ctx_cmd->rsp.data[0]);
 
-    rsp->timestamp = B32_H2L(g_sel_time);
+    rsp->timestamp = B32_H2L(g_sel_sdr_time);
 
     ipmi_cmd_ok(ctx_cmd, sizeof(struct sel_time_st));
 }
@@ -396,7 +382,7 @@ void ipmi_set_sel_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sel_time_st *req = (struct sel_time_st *)(&ctx_cmd->req.data[0]);
 
-    g_sel_time = B32_L2H(req->timestamp);
+    g_sel_sdr_time = B32_L2H(req->timestamp);
 
     ipmi_cmd_ok(ctx_cmd, 0);
 }
@@ -421,12 +407,12 @@ void ipmi_clear_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     if (req->operation == INITIATE_ERASE) {
         // init erase
-        sel_status_set(IPMI_SEL_ERASE_PROCESS);
+        ipmi_storage_status_set(IPMI_STORAGE_ERASE_PROCESS);
 
         // clear ipmi sel header
         error = at24xx_clear(IPMI_SEL_HEADER_OFFSET, sizeof(sel_event_header));
         if (error) {
-            sel_status_clr(IPMI_SEL_ERASE_PROCESS);
+            ipmi_storage_status_clr(IPMI_STORAGE_ERASE_PROCESS);
             ipmi_cmd_err(ctx_cmd, IPMI_CC_REQ_DATA_NOT_PRESENT);
             return;
         }
@@ -434,11 +420,11 @@ void ipmi_clear_sel_entry(struct ipmi_ctx *ctx_cmd)
         // clear ipmi sel record storage
         error = at24xx_clear(IPMI_SEL_STORAGE_OFFSET, IPMI_MAX_SEL_SPACE);
         if (error) {
-            sel_status_clr(IPMI_SEL_ERASE_PROCESS);
+            ipmi_storage_status_clr(IPMI_STORAGE_ERASE_PROCESS);
             ipmi_cmd_err(ctx_cmd, IPMI_CC_REQ_DATA_NOT_PRESENT);
             return;
         }
-        sel_status_clr(IPMI_SEL_ERASE_PROCESS);
+        ipmi_storage_status_clr(IPMI_STORAGE_ERASE_PROCESS);
 
         // reinit ipmi sel header
         ipmi_sel_init();
@@ -451,8 +437,8 @@ void ipmi_clear_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     } else if (req->operation == GET_ERASURE_STATUS) {
         // get erase status
-        sel_status_get(&status);
-        if (status & IPMI_SEL_ERASE_PROCESS) {
+        ipmi_storage_status_get(&status);
+        if (status & IPMI_STORAGE_ERASE_PROCESS) {
             rsp->erasure_progress = 0;
         } else {
             rsp->erasure_progress = 1;
@@ -486,9 +472,15 @@ void ipmi_sel_init(void)
         g_ipmi_sel_header.most_recent_erase_timestamp = 0;
     }
 
-    if (g_ipmi_sel_header.count_of_entries == 0)
-    {
+    /* rebuild the free space */
+    if (g_ipmi_sel_header.count_of_entries == 0) {
         g_ipmi_sel_header.free_space = IPMI_MAX_SEL_SPACE;
+    }
+
+    // write the sel header to eeprom
+    error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
+    if (error) {
+        return;
     }
 }
 

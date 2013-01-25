@@ -12,6 +12,7 @@
 #define _IPMI_H_
 
 #include <inttypes.h>
+#include "inc/hw_types.h"
 
 /* NetFn
  * See IPMI specification table 5-1 Network Function Codes
@@ -60,6 +61,7 @@
 #define IPMI_CC_NOT_SUPPORTED_PRESENT_STATE         0xd5    // "Command not supported in present state"
 #define IPMI_CC_ILLEGAL_COMMAND_DISABLED            0xd6    // "Cannot execute command, command disabled"
 #define IPMI_CC_UNSPECIFIED_ERROR                   0xff    // "Unspecified error"
+#define IPMI_CC_RECORD_REJECTED_DUE_TO_MISMATCH     0x80    // "Record rejected due to mismatch between record length in header data and number of bytes written."
 #define IPMI_CC_SEL_ERASE_PROGRESS                  0x81    // "Cannot execute command, SEL erase in progress"
 
 /* CHANNEL NUMBERS */
@@ -334,25 +336,25 @@
 //extern int verbose;
 //extern int csv_output;
 struct _ipmi_req_cmd {
-    uint8_t data_len;
-    uint8_t rs_sa;
+    uint8_t data_len;               // 数据总长度
+    uint8_t rs_sa;                  // 响应从地址
 #ifdef __LITTLE_ENDIAN__
-    uint8_t lun:2,
-            netfn:6;
+    uint8_t rs_lun:2,               // 响应逻辑单元号
+            netfn:6;                // 网络功能码
 #else
     uint8_t netfn:6,
-            lun:2;
+            rs_lun:2;
 #endif
-    uint8_t checksum1;
-    uint8_t rq_sa;
+    uint8_t checksum1;              // 校验码1
+    uint8_t rq_sa;                  // 请求从地址
 #ifdef __LITTLE_ENDIAN__
+    uint8_t rq_lun:2,               // 请求逻辑单元号
+            rq_seq:6;               // 请求序列号
+#else
     uint8_t rq_seq:6,
             rq_lun:2;
-#else
-    uint8_t rq_lun:2,
-            rq_seq:6;
 #endif
-    uint8_t cmd;
+    uint8_t cmd;                    // 命令号
 };
 
 struct ipmi_req {
@@ -541,12 +543,15 @@ extern unsigned long device_available;
 #include "ipmi_lib/ipmi_version.h"
 #include "ipmi_lib/ipmi_intf.h"
 #include "ipmi_lib/ipmi_common.h"
+#include "ipmi_lib/ipmi_timer.h"
 #include "ipmi_lib/ipmi_logic.h"
 #include "ipmi_lib/ipmi_cmd.h"
 #include "ipmi_lib/ipmi_debug.h"
 #include "ipmi_lib/ipmi_cfg.h"
 #include "ipmi_lib/ipmi_chassis.h"
 #include "ipmi_lib/ipmi_se.h"
+#include "ipmi_lib/ipmi_storage.h"
+#include "ipmi_lib/ipmi_transport.h"
 #include "ipmi_lib/ipmi_sel.h"
 #include "ipmi_lib/ipmi_sdr.h"
 #include "ipmi_lib/ipmi_app.h"

@@ -43,9 +43,10 @@ extern void adt7470_init(void);
 extern void key_init(void);
 extern void mc_locator_init(void);
 
-int ipmi_cmd_err(struct ipmi_ctx *ctx_cmd, uint8_t error);
-int ipmi_cmd_invalid(struct ipmi_ctx *ctx_cmd);
-int ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen);
+void ipmi_cmd_err(struct ipmi_ctx *ctx_cmd, uint8_t error);
+void ipmi_cmd_invalid(struct ipmi_ctx *ctx_cmd);
+void ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen);
+void ipmi_cmd_set_flags(struct ipmi_ctx *ctx_cmd, uint8_t flags);
 
 char ipmi_common_get_device_id(void);
 char ipmi_common_get_device_revision(void);

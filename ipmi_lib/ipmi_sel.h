@@ -17,8 +17,6 @@
 
 #define IPMI_SEL_VERSION            0x51
 
-#define IPMI_SEL_ERASE_PROCESS      0x0001
-
 #define IPMI_SEL_HEADER_OFFSET      0x1800  /* 0k (cpu) 2k (arm) 4k (sdr) 6k (sel) 8k */
 #define IPMI_SEL_STORAGE_OFFSET     (IPMI_SEL_HEADER_OFFSET + (sizeof(sel_event_header)))
 #define IPMI_MAX_SEL_BYTES          16

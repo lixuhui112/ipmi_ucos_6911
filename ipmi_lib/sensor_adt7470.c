@@ -318,7 +318,7 @@ void adt7470_init_sensor_record(uint8_t i)
     /* RECORD BODY BYTES */
 	adt7470_sr[i].entity_id.id = ENTITY_ID_SYSTEM_BOARD;            /* physical entity the sensor is monitoring */
 	adt7470_sr[i].entity_id.entity_type = 0;	                    /* treat entity as a physical entity */
-	adt7470_sr[i].entity_id.entity_instance_num  = 0;
+	adt7470_sr[i].entity_id.entity_instance_num  = i;
 
 	/* Sensor Default (power up) State */
 	adt7470_sr[i].initialization.powerup_sensor_scanning = 1;       /* sensor scanning enabled */

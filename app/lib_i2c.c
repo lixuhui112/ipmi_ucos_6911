@@ -182,15 +182,14 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
         unsigned char addr_size, unsigned long data_size, char *buf)
 {
     unsigned char data_addr_i2c[4];
+    unsigned long error;
     int addr_i2c_len = 0;
     int data_i2c_index = 0;
-    int error;
 
     //
     // Check the arguments.
     //
     ASSERT(dev);
-    ASSERT(data_addr);
     ASSERT(addr_size);
     ASSERT(data_size);
     ASSERT(buf);
@@ -199,12 +198,14 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
     switch (addr_size)
     {
         case 4:                         // 32位寄存器地址
+            addr_i2c_len = 4;
             data_addr_i2c[0] = (char)(data_addr >> 24);
             data_addr_i2c[1] = (char)(data_addr >> 16);
             data_addr_i2c[2] = (char)(data_addr >> 8);
             data_addr_i2c[3] = (char)(data_addr);
             break;
         case 3:                         // 24位寄存器地址
+            addr_i2c_len = 3;
             data_addr_i2c[0] = (char)(data_addr >> 16);
             data_addr_i2c[1] = (char)(data_addr >> 8);
             data_addr_i2c[2] = (char)(data_addr);
@@ -230,6 +231,14 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
         return I2C_MASTER_ERR_NONE;
     }
 
+    I2CMasterInit(dev, false);
+
+    // Enables the I2C Master interrupt.
+    //I2CMasterIntEnable(I2C0_MASTER_BASE);
+
+    // Enables the I2C Master block.
+    I2CMasterEnable(dev);
+
     // 设置从设备的地址
     I2CMasterSlaveAddrSet(dev, slave_addr, false);
 
@@ -237,7 +246,7 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
     I2CMasterDataPut(dev, data_addr_i2c[data_i2c_index++]);
 
     // 防止多主机同时操作，等待总线空闲
-    //while (I2CMasterBusBusy(dev->bus->i2c_hw_master_base));
+    //while (I2CMasterBusBusy(dev));
 
     // 主机突发发送起始
     I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_START);
@@ -255,6 +264,9 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
             {
                 I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
             }
+
+            I2CMasterDisable(dev);
+
             return error;
         }
 
@@ -278,7 +290,11 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
     while (I2CMasterBusy(dev));
 
     // 检测可能的错误
-    return I2CMasterErr(dev);
+    error = I2CMasterErr(dev);
+
+    I2CMasterDisable(dev);
+
+    return error;
 }
 
 #if (defined(IPMI_MODULES_I2C0_IPMB))
@@ -287,7 +303,8 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
 // The function of I2C1 Interface
 //
 //*****************************************************************************
-static I2C_DRIVER i2c0;                                     // I2C0设备
+static I2C_DRIVER i2c0;                                     // I2C0设备驱动
+static I2C_DEVICE i2c0_peer_dev;                            // I2C0主模式对端设备
 static uint8_t i2c0_self_address;                           // I2C0从设备地址
 
 #define I2C0_BUF_SIZE           0x80                        // IPMB帧最大长度
@@ -297,7 +314,7 @@ static unsigned char i2c0_rx_idx;
 static unsigned char i2c0_rx_len;
 static unsigned char i2c0_tx_idx;
 static unsigned char i2c0_tx_len;
-//static unsigned long i2c0_rx_timestamp;
+static unsigned long i2c0_rx_timestamp;
 
 //*****************************************************************************
 // The interrupt handler for the I2C0 interrupt.
@@ -305,10 +322,6 @@ static unsigned char i2c0_tx_len;
 void I2C_i2c0_int_handler(void)
 {
     unsigned long status;
-    //unsigned long act;
-    //unsigned char data;
-    //static unsigned char i2c0_frame = 0;
-    //static unsigned char i2c0_size = 0;
 
     // 获取I2C0主机中断状态
     status = I2CMasterIntStatus(I2C0_MASTER_BASE, true);
@@ -317,8 +330,13 @@ void I2C_i2c0_int_handler(void)
         I2CMasterIntClear(I2C0_MASTER_BASE);
 
         // 若遇到错误
-        if (I2CMasterErr(I2C0_MASTER_BASE) != I2C_MASTER_ERR_NONE)
+        if ((i2c0.error = I2CMasterErr(I2C0_MASTER_BASE)) != I2C_MASTER_ERR_NONE)
         {
+            if (i2c0.error & I2C_MASTER_ERR_ARB_LOST)
+            {
+                I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+            }
+
             i2c0.status = I2C_STAT_IDLE;
             return;
         }
@@ -436,10 +454,15 @@ void I2C_i2c0_int_handler(void)
         return;
     }
 
-#if 0
-    status = I2CSlaveIntStatus(I2C0_SLAVE_BASE, true);          // 获取I2C0从机中断状态
+    // 获取I2C0从机中断状态
+    status = I2CSlaveIntStatus(I2C0_SLAVE_BASE, true);
     if (status)
     {
+        unsigned long act;
+        unsigned char data;
+        static unsigned char i2c0_frame = 0;
+        static unsigned char i2c0_size = 0;
+
         I2CSlaveIntClear(I2C0_SLAVE_BASE);
 
         // if recvie frame time out, reset the frame
@@ -454,22 +477,29 @@ void I2C_i2c0_int_handler(void)
         act = I2CSlaveStatus(I2C0_SLAVE_BASE);
         switch (act)
         {
-            case I2C_SLAVE_ACT_NONE:                            // 主机没有请求任何动作
+            // 主机没有请求任何动作
+            case I2C_SLAVE_ACT_NONE:
                 break;
 
-            case I2C_SLAVE_ACT_RREQ_FBR:                        // 主机已发送从机地址和数据地址首字节
+            // 主机已发送从机地址和数据地址首字节
+            case I2C_SLAVE_ACT_RREQ_FBR:
                 data = (unsigned char)I2CSlaveDataGet(I2C0_SLAVE_BASE);
+
+                DEBUG("\r\naddr=0x%x\r\n", data);
 
                 // 读取的数据为寄存器地址，默认为0
                 i2c0_frame = 0;
                 i2c0_size = 0;
                 break;
 
-            case I2C_SLAVE_ACT_RREQ:                            // 主机已经发送数据到从机
+            // 主机已经发送数据到从机
+            case I2C_SLAVE_ACT_RREQ:
                 data = (unsigned char)I2CSlaveDataGet(I2C0_SLAVE_BASE);
 
+                DEBUG(">data=0x%x\r\n", data);
+
                 // 检测前导码
-                if (i2c0_frame < sizeof (IPMI_FRAME_CHAR))
+                if (i2c0_frame < IPMI_FRAME_CHAR_SIZE)
                 {
                     if (IPMI_FRAME_CHAR[i2c0_frame] == data)
                     {
@@ -510,6 +540,8 @@ void I2C_i2c0_int_handler(void)
                 break;
 
             case I2C_SLAVE_ACT_TREQ:                            // 主机请求从机发送数据
+                I2CSlaveDataPut(I2C0_SLAVE_BASE, 0x5a);
+                DEBUG("<get=0x%x\r\n", 0x5a);
 #if 0
                 /*
                  * IPMB为主写模式操作，不需要从设备写数据到主机
@@ -537,7 +569,6 @@ void I2C_i2c0_int_handler(void)
                 break;
         }
     }
-#endif
 }
 
 //*****************************************************************************
@@ -561,6 +592,7 @@ uint32_t I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long size)
 {
     unsigned char j;
+    uint8_t error;
 
     // 先写前导码
     for (i2c0_tx_idx = 0; i2c0_tx_idx < sizeof(IPMI_FRAME_CHAR); i2c0_tx_idx++)
@@ -577,9 +609,129 @@ uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long 
     i2c0_tx_len = i2c0_tx_idx;
     i2c0_tx_idx = 0;
 
-    I2C_dev_write(I2C0_MASTER_BASE, slave_addr, 0, 1, i2c0_tx_len, (char*)i2c0_tx_buf);
+#if 1
+    // 信号量保护，防止函数重入
+    OSSemPend(i2c0.sem, 0, &error);
+    error = I2C_dev_write(I2C0_MASTER_BASE, slave_addr, 0, 1, i2c0_tx_len, (char*)&i2c0_tx_buf[0]);
+    OSSemPost(i2c0.sem);
+    return error;
+#else
+    I2C_i2c0_slave_dev_init(&i2c0_peer_dev, slave_addr, 1);
+    I2C_i2c0_slave_dev_set(&i2c0_peer_dev, 0, (uint8_t*)&i2c0_tx_buf[0], i2c0_tx_len);
+    error = I2C_i2c0_master_write(&i2c0_peer_dev);
+    return error;
+#endif
+}
 
-    return 0;
+//*****************************************************************************
+// The I2C0 IPMB slave device init
+//*****************************************************************************
+void I2C_i2c0_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size)
+{
+    dev->slave_addr = slave_addr;
+    dev->addr_size = addr_size;
+}
+
+//*****************************************************************************
+// The I2C0 IPMB slave device setting
+//*****************************************************************************
+void I2C_i2c0_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_buf, uint32_t data_size)
+{
+    dev->reg_addr = reg_addr;
+    dev->data_buf = data_buf;
+    dev->data_size = data_size;
+}
+
+//*****************************************************************************
+// The I2C0 IPMB slave device address set
+//*****************************************************************************
+void I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr)
+{
+    i2c0_self_address = self_addr;
+
+    // Set the slave address to SLAVE_ADDRESS.
+    I2CSlaveInit(I2C0_SLAVE_BASE, i2c0_self_address);
+
+    // Enables the I2C Slave interrupt.
+    I2CSlaveIntEnable(I2C0_SLAVE_BASE);
+
+    // Enables the I2C Slave block.
+    I2CSlaveEnable(I2C0_SLAVE_BASE);
+
+    //DEBUG("set ipmb_self_addr=0x%x\r\n", i2c0_self_address);
+}
+
+//*****************************************************************************
+// The I2C0 IPMB slave device address get
+//*****************************************************************************
+uint8_t I2C_i2c0_ipmb_self_addr_get(void)
+{
+    return i2c0_self_address;
+}
+
+//*****************************************************************************
+// The I2C0 hardware Initailize for IPMB.
+//*****************************************************************************
+void I2C_i2c0_hardware_init(void)
+{
+    // The I2C0 peripheral must be enabled before use.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+
+    // For this example I2C0 is used with PortB[3:2].
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+    // Configure the pin muxing for I2C0 functions on port B2 and B3.
+    //GPIOPinConfigure(GPIO_PB2_I2C0SCL);
+    //GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+
+    // Select the I2C function for these pins.
+    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
+
+    // Enables the I2C0 interrupt.
+    IntEnable(INT_I2C0);
+}
+
+void I2C_i2c0_hardware_reset(void)
+{
+    IntDisable(INT_I2C0);
+    SysCtlPeripheralDisable(SYSCTL_PERIPH_I2C0);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_2);
+    GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_2, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_3);
+    GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_3, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+}
+
+//*****************************************************************************
+// Enable and initialize the I2C1 master module. Use a data rate of 100kbps.
+//*****************************************************************************
+void I2C_i2c0_mode_master(void)
+{
+    //I2CSlaveDisable(I2C0_SLAVE_BASE);
+
+    // Initializes the I2C Master block.
+    I2CMasterInit(I2C0_MASTER_BASE, false);
+
+    // Enables the I2C Master interrupt.
+    I2CMasterIntEnable(I2C0_MASTER_BASE);
+
+    // Enables the I2C Master block.
+    I2CMasterEnable(I2C0_MASTER_BASE);
+}
+
+//*****************************************************************************
+// Enable and initialize the I2C0 slaver module and set the self address .
+//*****************************************************************************
+void I2C_i2c0_mode_slaver(void)
+{
+    I2CMasterIntDisable(I2C0_MASTER_BASE);
+    I2CMasterDisable(I2C0_MASTER_BASE);
+
+    I2C_i2c0_hardware_reset();
+    I2C_i2c0_hardware_init();
+
+    I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + 1);
 }
 
 //*****************************************************************************
@@ -594,6 +746,7 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
         return(I2C_MASTER_ERR_ADDR_ACK);
     }
 
+    // 信号量保护，防止函数重入
     OSSemPend(i2c0.sem, 0, &err);
 
     i2c0.dev = dev;
@@ -632,6 +785,9 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
     // 如果是多主机通信，则需要首先等待总线空闲
     // while (I2CMasterBusBusy(I2CM_BASE));
 
+    // 设置为主模式
+    I2C_i2c0_mode_master();
+
     // 设置从机地址，写操作
     I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, i2c0.dev->slave_addr, false);
 
@@ -647,56 +803,19 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
     // 等待总线操作完毕
     while (i2c0.status != I2C_STAT_IDLE);
 
+    // 等待主机工作完成
+    while (I2CMasterBusy(I2C0_MASTER_BASE));
+
+    // 设置为从模式
+    I2C_i2c0_mode_slaver();
+
+    // 释放信号量
     OSSemPost(i2c0.sem);
 
     // 返回可能的错误状态
-    return(I2CMasterErr(I2C0_MASTER_BASE));
+    return(i2c0.error);
 }
 
-//*****************************************************************************
-// The I2C0 IPMB slave device init
-//*****************************************************************************
-void I2C_i2c0_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size)
-{
-    dev->slave_addr = slave_addr;
-    dev->addr_size = addr_size;
-}
-
-//*****************************************************************************
-// The I2C0 IPMB slave device setting
-//*****************************************************************************
-void I2C_i2c0_slave_dev_set(I2C_DEVICE *dev, uint32_t reg_addr, uint8_t *data_buf, uint32_t data_size)
-{
-    dev->reg_addr = reg_addr;
-    dev->data_buf = data_buf;
-    dev->data_size = data_size;
-}
-
-//*****************************************************************************
-// The I2C0 IPMB slave device address set
-//*****************************************************************************
-void I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr)
-{
-    i2c0_self_address = self_addr;
-
-    I2CSlaveInit(I2C0_SLAVE_BASE, i2c0_self_address);
-    I2CSlaveIntEnable(I2C0_SLAVE_BASE);
-    IntEnable(INT_I2C0);
-    IntMasterEnable();
-    I2CSlaveEnable(I2C0_SLAVE_BASE);
-}
-
-//*****************************************************************************
-// The I2C0 IPMB slave device address get
-//*****************************************************************************
-uint8_t I2C_i2c0_ipmb_self_addr_get(void)
-{
-    return i2c0_self_address;
-}
-
-//*****************************************************************************
-// The I2C0 hardware Initailize for IPMB.
-//*****************************************************************************
 void I2C_i2c0_ipmb_init(void)
 {
     i2c0.sem = OSSemCreate(1);
@@ -706,30 +825,13 @@ void I2C_i2c0_ipmb_init(void)
     i2c0.flags = 0;
     i2c0.status = I2C_STAT_IDLE;
 
-    // The I2C0 peripheral must be enabled before use.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+    I2C_i2c0_slave_dev_init(&i2c0_peer_dev, IPMB_SLAVE_ADDR_BASE, 1);
 
-    // For this example I2C0 is used with PortB[3:2].
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    I2C_i2c0_hardware_init();
 
-    // Configure the pin muxing for I2C0 functions on port B2 and B3.
-    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
-
-    // Select the I2C function for these pins.
-    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
-
-    IntEnable(INT_I2C0);
-
-    // Enable and initialize the I2C1 master module. Use a data rate of 100kbps.
-    I2CMasterInit(I2C0_MASTER_BASE, false);
-
-    I2CMasterIntEnable(I2C0_MASTER_BASE);
-
-    I2CMasterEnable(I2C0_MASTER_BASE);
-
-    // set i2c0 to slave mode
-    //I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + g_slot_addr);
+    // Default is use Slaver mode on I2C0.
+    //I2C_i2c0_mode_slaver();
+    I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + 1);
 }
 #endif
 
@@ -889,16 +991,6 @@ void I2C_i2c1_int_handler(void)
         }
         return;
     }
-}
-
-uint32_t I2C_i2c1_pmb_read(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
-{
-    return I2C_dev_read(I2C1_MASTER_BASE, slave_addr, data_addr, addr_size, size, buf);
-}
-
-uint32_t I2C_i2c1_pmb_write(unsigned slave_addr, unsigned long data_addr, unsigned char addr_size, char *buf, unsigned long size)
-{
-    return I2C_dev_write(I2C1_MASTER_BASE, slave_addr, data_addr, addr_size, size, buf);
 }
 
 void I2C_i2c1_slave_dev_init(I2C_DEVICE *dev, uint8_t slave_addr, uint32_t addr_size)

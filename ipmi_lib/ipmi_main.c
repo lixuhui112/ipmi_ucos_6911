@@ -16,18 +16,18 @@
 #include "ipmi_lib/ipmi.h"
 #include "ucos_ii.h"
 #include "third_party/ustdlib.h"
-#define STK_SIZE                128
 
 //*****************************************************************************
 //
 // Defines stack for the task
 //
 //*****************************************************************************
+#define STK_SIZE    128
 static OS_STK ipmi_task_stk[STK_SIZE];
 static OS_STK recv_task_stk[STK_SIZE];
 static OS_STK proc_task_stk[STK_SIZE];
 static OS_STK send_task_stk[STK_SIZE];
-static OS_STK period_task_stk[STK_SIZE];
+static OS_STK test_task_stk[STK_SIZE];
 
 //*****************************************************************************
 //
@@ -48,15 +48,6 @@ static OS_EVENT *ipmi_req_que;
 static OS_EVENT *ipmi_rsp_que;
 void *ipmi_req_que_pool[IPMI_CMD_QUE_SIZE];
 void *ipmi_rsp_que_pool[IPMI_CMD_QUE_SIZE];
-
-
-//*****************************************************************************
-//
-// Defines timer for the ipmi task
-//
-//*****************************************************************************
-#define IPMI_TIMER_PERIOD       10
-OS_TMR *ipmi_timer;
 
 
 //*****************************************************************************
@@ -256,7 +247,7 @@ void ipmi_cmd_recv_task(void *args)
 //*****************************************************************************
 void ipmi_cmd_proc_task(void *args)
 {
-    INT8U err;
+    INT8U err = 0;
     struct ipmi_ctx *ctx_cmd;
 
     while (1)
@@ -270,7 +261,7 @@ void ipmi_cmd_proc_task(void *args)
 
         DEBUG("rs_sa=0x%x\r\n", ctx_cmd->req.msg.rs_sa);
         DEBUG("netfn=0x%x\r\n", ctx_cmd->req.msg.netfn);
-        DEBUG("lun=0x%x\r\n", ctx_cmd->req.msg.lun);
+        DEBUG("rs_lun=0x%x\r\n", ctx_cmd->req.msg.rs_lun);
         DEBUG("checksum=0x%x\r\n", ctx_cmd->req.msg.checksum1);
         DEBUG("rq_sa=0x%x\r\n", ctx_cmd->req.msg.rq_sa);
         DEBUG("rq_seq=0x%x\r\n", ctx_cmd->req.msg.rq_seq);
@@ -313,7 +304,7 @@ void ipmi_cmd_proc_task(void *args)
                 break;
 
             default:
-                err = ipmi_cmd_invalid(ctx_cmd);
+                ipmi_cmd_invalid(ctx_cmd);
                 break;
         }
 
@@ -322,6 +313,7 @@ void ipmi_cmd_proc_task(void *args)
         if (err)
         {
             ipmi_err();
+            ipmi_put_free_ctx_entry(ctx_cmd);
             continue;
         }
 
@@ -407,7 +399,7 @@ void ipmi_cmd_send_task(void *args)
 #endif
 }
 
-void ipmi_period_task(void *args)
+void ipmi_cmd_test_task(void *args)
 {
 #if 0
     // test for eeprom
@@ -490,23 +482,88 @@ void ipmi_period_task(void *args)
 
 
 #if 0
-    // test for i2c0/ipmb
+    // test for i2c1/ipmb
     I2C_DEVICE ipmb_dev;
     uint32_t error;
-    uint8_t buffer[4] = {0x01, 0x02, 0x03, 0x04};
+    //uint8_t addr = 0;
+    uint8_t buffer[4] = {0x00, 0x00, 0x00, 0x00};
 
-    I2C_i2c0_slave_dev_init(&ipmb_dev, 0x70, 1);
+    I2C_i2c1_slave_dev_init(&ipmb_dev, 0x41, 1);
 
 #if 1
     while (1)
     {
         // write to i2c0
-        I2C_i2c0_slave_dev_set(&ipmb_dev, 0x00, (uint8_t*)&buffer[0], 4);
-        error = I2C_i2c0_master_write(&ipmb_dev);
+        //addr = (addr + 1) & 0xff;
+
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x00, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_read(&ipmb_dev);
         if (error)
         {
             DEBUG("i2c0 error=0x%x\r\n", error);
         }
+        else
+        {
+            DEBUG("ina230 cfg=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x01, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_read(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("ina230 shunt=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x02, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_read(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("ina230 bus=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
+        buffer[0] = 0x2e;
+        buffer[1] = 0xcf;
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x05, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_write(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("ina230 cal=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x04, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_read(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("ina230 cur=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
+        I2C_i2c1_slave_dev_set(&ipmb_dev, 0x03, (uint8_t*)&buffer[0], 2);
+        error = I2C_i2c1_master_read(&ipmb_dev);
+        if (error)
+        {
+            DEBUG("i2c0 error=0x%x\r\n", error);
+        }
+        else
+        {
+            DEBUG("ina230 pow=0x%x\r\n", (buffer[0] << 8) | buffer[1]);
+        }
+
         OSTimeDlyHMSM(0, 0, 3, 0);
     }
 #endif
@@ -542,16 +599,14 @@ void ipmi_period_task(void *args)
 #endif
 }
 
-extern uint32_t g_sel_time;
-void ipmi_timer_task(void *ptmr, void *param)
-{
-    g_sel_time++;
-}
 
+//*****************************************************************************
+//
+// Defines IPMI Main Task
+//
+//*****************************************************************************
 void ipmi_task_main(void *args)
 {
-    INT8U err;
-
     // 读写任务信号量
     ipmi_recv_sem = OSSemCreate(0);
     //ipmi_send_sem = OSSemCreate(0);
@@ -570,21 +625,14 @@ void ipmi_task_main(void *args)
     OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
     OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
-    OSTaskCreate(ipmi_period_task,   (void*)0, (OS_STK*)&period_task_stk[STK_SIZE-1], (INT8U)7);
+    OSTaskCreate(ipmi_cmd_test_task, (void*)0, (OS_STK*)&test_task_stk[STK_SIZE-1], (INT8U)7);
 
-    // IPMI秒定时器
-    ipmi_timer = OSTmrCreate(0, IPMI_TIMER_PERIOD, OS_TMR_OPT_PERIODIC, ipmi_timer_task, NULL, "ipmi_timer", &err);
-    if (err == OS_ERR_NONE)
-    {
-        OSTmrStart(ipmi_timer, &err);
-    }
-
-    // LED定时器
-    led_start();
+    // IPMI定时器
+    ipmi_timer_init();
 
     while (1)
     {
-        OSTimeDlyHMSM(0, 0, 1, 0);
+        OSTimeDlyHMSM(0, 1, 0, 0);
     }
 
 }

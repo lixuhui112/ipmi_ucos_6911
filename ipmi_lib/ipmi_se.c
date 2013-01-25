@@ -22,6 +22,26 @@ uint16_t sdr_reservation_id = 0;
 
 sdr_record_entry_t sdr_entry_table[MAX_SDR_COUNT];
 sensor_data_t *sensor[MAX_SENSOR_COUNT];
+extern uint32_t g_sel_sdr_time;
+
+
+void ipmi_sensor_scan_period(void)
+{
+    uint8_t i;
+
+    for (i = 0; i < MAX_SENSOR_COUNT; i++)
+    {
+        if (sensor[i] != NULL && sensor[i]->scan_period) {
+            if ((sensor[i]->last_scan_timestamp + sensor[i]->scan_period) <= g_sel_sdr_time) {
+                sensor[i]->scan_function((void *)sensor[i]);
+                if (sensor[i]->retry == 0) {  // sensor is scanning ok
+                    sensor[i]->last_scan_timestamp = g_sel_sdr_time;
+                }
+                break;
+            }
+        }
+    }
+}
 
 uint8_t sdr_record_len(uint8_t sdr_type)
 {
@@ -47,6 +67,7 @@ int sensor_add(sensor_data_t *sensor_data, uint8_t sdr_type, void *sdr)
 
     sensor[current_sensor_count] = sensor_data;
     sensor_data->sensor_id = current_sensor_count;
+    sensor_data->sdr_record = &sdr_entry_table[current_sdr_count];
 
     sdr_entry_table[current_sdr_count].record_id = current_sdr_count;
     sdr_entry_table[current_sdr_count].record_type = sdr_type;

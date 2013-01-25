@@ -572,7 +572,7 @@ void IO_init(void)
 
 #if (defined(IPMI_MODULES_GPIO_SOL_SEL))
     IO_sol_init();                                                  // SOLÓ²¼þ³õÊ¼»¯
-    IO_sol_set(1);
+    IO_sol_set(0);
 #endif
 
 #if (defined(IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL))

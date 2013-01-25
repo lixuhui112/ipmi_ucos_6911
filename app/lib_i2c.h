@@ -8,6 +8,8 @@
 #define __LIB_I2C_H__
 
 #include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/i2c.h"
 #include "ucos_ii.h"
 #include <inttypes.h>
 
@@ -39,6 +41,7 @@ typedef struct
     uint8_t reg_addr[4];                    //
     uint8_t flags;                          //
     uint8_t status;
+    uint8_t error;
 } I2C_DRIVER;
 
 void I2C_init(void);

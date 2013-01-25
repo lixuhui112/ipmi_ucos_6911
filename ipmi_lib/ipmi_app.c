@@ -37,7 +37,7 @@ int ipmi_cmd_app(struct ipmi_ctx *ctx_cmd)
                 devid_rsp = (struct ipmi_devid_rsp *)&ctx_cmd->rsp.data[0];
 
                 devid_rsp->device_id = ipmi_common_get_device_id();
-                devid_rsp->device_revision = ((IPMI_DEV_SENSOR ? IPM_DEV_DEVICE_ID_SDR_MASK : 0) |
+                devid_rsp->device_revision = (((IPMI_DEV_SDR|IPMI_DEV_SENSOR) ? IPM_DEV_DEVICE_ID_SDR_MASK : 0) |
                                               (ipmi_common_get_device_revision() & IPM_DEV_DEVICE_ID_REV_MASK));
                 devid_rsp->fw_rev1 = (device_available << 7) | IPMI_FIRMWARE_VER_MAJOR;
                 devid_rsp->fw_rev2 = IPMI_FIRMWARE_VER_MINOR;
@@ -48,10 +48,10 @@ int ipmi_cmd_app(struct ipmi_ctx *ctx_cmd)
                 devid_rsp->manufacturer_id[2] = IPMI_DEV_MANUFACTURER_ID_0;
                 devid_rsp->product_id[0] = ipmi_common_get_product_id();
                 devid_rsp->product_id[1] = 0;
-                devid_rsp->aux_fw_rev[0] = 0;
-                devid_rsp->aux_fw_rev[1] = 0;
-                devid_rsp->aux_fw_rev[2] = 0;
-                devid_rsp->aux_fw_rev[3] = 0;
+                devid_rsp->aux_fw_rev[0] = IPMI_AUXILIARY_VERSION & 0xff;
+                devid_rsp->aux_fw_rev[1] = (IPMI_AUXILIARY_VERSION >> 8) & 0xff;
+                devid_rsp->aux_fw_rev[2] = (IPMI_AUXILIARY_VERSION >> 16) & 0xff;
+                devid_rsp->aux_fw_rev[3] = (IPMI_AUXILIARY_VERSION >> 24) & 0xff;
 
                 ipmi_cmd_ok(ctx_cmd, sizeof(struct ipmi_devid_rsp));
             }

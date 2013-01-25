@@ -94,31 +94,57 @@ History:
 #define INA230_ME_LEN           0x0001                  /* [01] Alert Latch Enable */
 
 /* 预设的公式原始参数 */
-#define INA230_VOL_MIN          (0)                     /* 最小电压读数 */
-#define INA230_VOL_MAX          (25)                    /* 最大电压读数 */
-#define INA230_VOL_M            (1)                     /* 电压M倍数 */
-#define INA230_VOL_B            (0)                     /* 电压B偏移 */
-#define INA230_VOL_K1           (0)                     /* 电压B偏移指数 */
-#define INA230_VOL_K2           (-1)                    /* 电压最终指数 */
+#define INA230_1_VOL_MIN        (0)                     /* 最小电压读数 */
+#define INA230_1_VOL_MAX        (25)                    /* 最大电压读数 */
+#define INA230_1_VOL_M          (1)                     /* 电压M倍数 */
+#define INA230_1_VOL_B          (0)                     /* 电压B偏移 */
+#define INA230_1_VOL_K1         (0)                     /* 电压B偏移指数 */
+#define INA230_1_VOL_K2         (-1)                    /* 电压最终指数 */
 
-#define INA230_CUR_MIN          (0)
-#define INA230_CUR_MAX          (50)
-#define INA230_CUR_M            (5)
-#define INA230_CUR_B            (0)
-#define INA230_CUR_K1           (0)
-#define INA230_CUR_K2           (0)
+#define INA230_1_CUR_MIN        (0)
+#define INA230_1_CUR_MAX        (50)
+#define INA230_1_CUR_M          (1)
+#define INA230_1_CUR_B          (0)
+#define INA230_1_CUR_K1         (0)
+#define INA230_1_CUR_K2         (0)
 
-#define INA230_POW_MIN          (0)
-#define INA230_POW_MAX          (600)
-#define INA230_POW_M            (3)
-#define INA230_POW_B            (0)
-#define INA230_POW_K1           (0)
-#define INA230_POW_K2           (0)
+#define INA230_1_POW_MIN        (0)
+#define INA230_1_POW_MAX        (600)
+#define INA230_1_POW_M          (1)
+#define INA230_1_POW_B          (0)
+#define INA230_1_POW_K1         (0)
+#define INA230_1_POW_K2         (0)
 
-#define RAW_2_VSHT_VAL(v)       ((float)(v * 0.0025))       /* 纹波电压转换, 单位 mV */
-#define RAW_2_VBUS_VAL(v)       ((float)(v * 0.00125))      /* 总线电压转换, 单位 V  */
-#define RAW_2_CUR_VAL(c)        ((float)(c * 0.001))        /* 电流转换, 单位 A */
-#define RAW_2_POW_VAL(p)        ((float)(p * 0.025))        /* 功率转换, 单位 W */
+#define INA230_2_VOL_MIN        (0)                     /* 最小电压读数 */
+#define INA230_2_VOL_MAX        (5)                     /* 最大电压读数 */
+#define INA230_2_VOL_M          (1)                     /* 电压M倍数 */
+#define INA230_2_VOL_B          (0)                     /* 电压B偏移 */
+#define INA230_2_VOL_K1         (0)                     /* 电压B偏移指数 */
+#define INA230_2_VOL_K2         (-1)                    /* 电压最终指数 */
+
+#define INA230_2_CUR_MIN        (0)
+#define INA230_2_CUR_MAX        (8)
+#define INA230_2_CUR_M          (1)
+#define INA230_2_CUR_B          (0)
+#define INA230_2_CUR_K1         (0)
+#define INA230_2_CUR_K2         (-1)
+
+#define INA230_2_POW_MIN        (0)
+#define INA230_2_POW_MAX        (40)
+#define INA230_2_POW_M          (1)
+#define INA230_2_POW_B          (0)
+#define INA230_2_POW_K1         (0)
+#define INA230_2_POW_K2         (-1)
+
+#define R_SHUNT                 ((float)0.007 / 4)
+#define CUR_LSB(maxcur)         ((float)(maxcur) / pow(2, 15))
+#define POW_LSB(curlsb)         ((float)(curlsb) * 25)
+#define CAL(curlsb, rshunt)     ((float)0.00512 / (curlsb * rshunt))
+
+#define RAW_2_VSHT_VAL(v)       ((float)(v * 0.0025))                       /* 纹波电压转换, 单位 mV */
+#define RAW_2_VBUS_VAL(v)       ((float)(v * 0.00125))                      /* 总线电压转换, 单位 V  */
+#define RAW_2_CUR_VAL(c,maxcur) ((float)(c * CUR_LSB(maxcur)))              /* 电流转换, 单位 A */
+#define RAW_2_POW_VAL(p,maxcur) ((float)(p * POW_LSB(CUR_LSB(maxcur))))     /* 功率转换, 单位 W */
 
 SDR_RECORD_FULL ina230_sr[MAX_INA230_COUNT];
 sensor_data_t ina230_sd[MAX_INA230_COUNT];
@@ -130,75 +156,94 @@ const SENSOR_FORMULA ina230_formula[MAX_INA230_COUNT] =
         .sensor_id  = "ina230-1-vol",
         .type       = SENSOR_TYPE_VOLTAGE,
         .unit       = SENSOR_UNIT_VOLTS,
-        .vmin       = INA230_VOL_MIN,
-        .vmax       = INA230_VOL_MAX,
-        .M          = INA230_VOL_M,
-        .B          = INA230_VOL_B,
-        .K1         = INA230_VOL_K1,
-        .K2         = INA230_VOL_K2,
+        .vmin       = INA230_1_VOL_MIN,
+        .vmax       = INA230_1_VOL_MAX,
+        .M          = INA230_1_VOL_M,
+        .B          = INA230_1_VOL_B,
+        .K1         = INA230_1_VOL_K1,
+        .K2         = INA230_1_VOL_K2,
     },
     {
         .sensor_id  = "ina230-1-cur",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_AMPS,
-        .vmin       = INA230_CUR_MIN,
-        .vmax       = INA230_CUR_MAX,
-        .M          = INA230_CUR_M,
-        .B          = INA230_CUR_B,
-        .K1         = INA230_CUR_K1,
-        .K2         = INA230_CUR_K2,
+        .vmin       = INA230_1_CUR_MIN,
+        .vmax       = INA230_1_CUR_MAX,
+        .M          = INA230_1_CUR_M,
+        .B          = INA230_1_CUR_B,
+        .K1         = INA230_1_CUR_K1,
+        .K2         = INA230_1_CUR_K2,
     },
     {
         .sensor_id  = "ina230-1-pow",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_WATTS,
-        .vmin       = INA230_POW_MIN,
-        .vmax       = INA230_POW_MAX,
-        .M          = INA230_POW_M,
-        .B          = INA230_POW_B,
-        .K1         = INA230_POW_K1,
-        .K2         = INA230_POW_K2,
+        .vmin       = INA230_1_POW_MIN,
+        .vmax       = INA230_1_POW_MAX,
+        .M          = INA230_1_POW_M,
+        .B          = INA230_1_POW_B,
+        .K1         = INA230_1_POW_K1,
+        .K2         = INA230_1_POW_K2,
     },
     {
         .sensor_id  = "ina230-2-vol",
         .type       = SENSOR_TYPE_VOLTAGE,
         .unit       = SENSOR_UNIT_VOLTS,
-        .vmin       = INA230_VOL_MIN,
-        .vmax       = INA230_VOL_MAX,
-        .M          = INA230_VOL_M,
-        .B          = INA230_VOL_B,
-        .K1         = INA230_VOL_K1,
-        .K2         = INA230_VOL_K2,
+        .vmin       = INA230_2_VOL_MIN,
+        .vmax       = INA230_2_VOL_MAX,
+        .M          = INA230_2_VOL_M,
+        .B          = INA230_2_VOL_B,
+        .K1         = INA230_2_VOL_K1,
+        .K2         = INA230_2_VOL_K2,
     },
     {
         .sensor_id  = "ina230-2-cur",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_AMPS,
-        .vmin       = INA230_CUR_MIN,
-        .vmax       = INA230_CUR_MAX,
-        .M          = INA230_CUR_M,
-        .B          = INA230_CUR_B,
-        .K1         = INA230_CUR_K1,
-        .K2         = INA230_CUR_K2,
+        .vmin       = INA230_2_CUR_MIN,
+        .vmax       = INA230_2_CUR_MAX,
+        .M          = INA230_2_CUR_M,
+        .B          = INA230_2_CUR_B,
+        .K1         = INA230_2_CUR_K1,
+        .K2         = INA230_2_CUR_K2,
     },
     {
         .sensor_id  = "ina230-2-pow",
         .type       = SENSOR_TYPE_CURRENT,
         .unit       = SENSOR_UNIT_WATTS,
-        .vmin       = INA230_POW_MIN,
-        .vmax       = INA230_POW_MAX,
-        .M          = INA230_POW_M,
-        .B          = INA230_POW_B,
-        .K1         = INA230_POW_K1,
-        .K2         = INA230_POW_K2,
+        .vmin       = INA230_2_POW_MIN,
+        .vmax       = INA230_2_POW_MAX,
+        .M          = INA230_2_POW_M,
+        .B          = INA230_2_POW_B,
+        .K1         = INA230_2_POW_K1,
+        .K2         = INA230_2_POW_K2,
     },
 };
 
 
 void ina230_init_chip(void)
 {
+    uint8_t rvalue[2];
+    uint16_t cal;
+
     I2C_i2c1_slave_dev_init(&ina230_dev[0], INA230_SLAVE_ADDR_1, 1);
     I2C_i2c1_slave_dev_init(&ina230_dev[1], INA230_SLAVE_ADDR_2, 1);
+
+    // set the ina230-1 calibration register
+    //CAL = 0.00512 / ((50.0 / (2 ^ 15)) * (0.007 / 4))
+    cal = (uint16_t)(CAL(CUR_LSB(INA230_1_CUR_MAX), R_SHUNT));
+    rvalue[0] = (cal >> 8) & 0xff;
+    rvalue[1] = cal & 0xff;
+    I2C_i2c1_slave_dev_set(&ina230_dev[0], INA230_REG_CALIBRATION, (uint8_t*)&rvalue, 2);
+    I2C_i2c1_master_write(&ina230_dev[0]);
+
+    // set the ina230-2 calibration register
+    //CAL = 0.00512 / ((8.0 / (2 ^ 15)) * (0.007 / 4))
+    cal = (uint16_t)(CAL(CUR_LSB(INA230_2_CUR_MAX), R_SHUNT));
+    rvalue[0] = (cal >> 8) & 0xff;
+    rvalue[1] = cal & 0xff;
+    I2C_i2c1_slave_dev_set(&ina230_dev[1], INA230_REG_CALIBRATION, (uint8_t*)&rvalue, 2);
+    I2C_i2c1_master_write(&ina230_dev[1]);
 }
 
 void ina230_scan_function(void *arg)
@@ -209,31 +254,34 @@ void ina230_scan_function(void *arg)
     uint16_t rvalue;
     float value;
 
-    dev = sd->local_sensor_id / MAX_INA230_DEV;
-    id = sd->local_sensor_id % MAX_INA230_DEV;
+    if (sd->local_sensor_id >= MAX_INA230_COUNT) {
+        sd->unavailable = 1;
+        return;
+    }
+
+    dev = sd->local_sensor_id / MAX_INA230_READER;
+    id = sd->local_sensor_id % MAX_INA230_READER;
+
 
     /* read voltage, current, power from ina230 */
     switch (id)
     {
         case INA230_ID_VOL:
-            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_BUS_VOL, (uint8_t*)&rvalue, 2);
-            error = I2C_i2c0_master_read(&ina230_dev[dev]);
-            value = RAW_2_VBUS_VAL(rvalue);
-            //value = RAW_2_VBUS_VAL(0x2570);     // 11.98V
+            I2C_i2c1_slave_dev_set(&ina230_dev[dev], INA230_REG_BUS_VOL, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c1_master_read(&ina230_dev[dev]);
+            value = RAW_2_VBUS_VAL(BSWAP_16(rvalue));
             break;
 
         case INA230_ID_CUR:
-            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_CURRENT, (uint8_t*)&rvalue, 2);
-            error = I2C_i2c0_master_read(&ina230_dev[dev]);
-            value = RAW_2_CUR_VAL(rvalue);
-            //value = RAW_2_CUR_VAL(0x2710);      // 10A
+            I2C_i2c1_slave_dev_set(&ina230_dev[dev], INA230_REG_CURRENT, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c1_master_read(&ina230_dev[dev]);
+            value = RAW_2_CUR_VAL(BSWAP_16(rvalue), ina230_formula[sd->local_sensor_id].vmax);
             break;
 
         case INA230_ID_POW:
-            I2C_i2c0_slave_dev_set(&ina230_dev[dev], INA230_REG_POWER, (uint8_t*)&rvalue, 2);
-            error = I2C_i2c0_master_read(&ina230_dev[dev]);
-            value = RAW_2_POW_VAL(rvalue);
-            //value = RAW_2_POW_VAL(0x12b8);      // 119.8W
+            I2C_i2c1_slave_dev_set(&ina230_dev[dev], INA230_REG_POWER, (uint8_t*)&rvalue, 2);
+            error = I2C_i2c1_master_read(&ina230_dev[dev]);
+            value = RAW_2_POW_VAL(BSWAP_16(rvalue), ina230_formula[sd->local_sensor_id].vmax);
             break;
 
         default:

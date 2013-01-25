@@ -14,7 +14,9 @@
 #define IPMI_VERSION                01          // ipmi version 1.0
 
 #define IPMI_FIRMWARE_VER_MAJOR     1           // firmware version 1.0
-#define IPMI_FIRMWARE_VER_MINOR     0
+#define IPMI_FIRMWARE_VER_MINOR     0           // BCD code
+
+#define IPMI_AUXILIARY_VERSION      0x00000001  // Build version 1.0
 
 //*****************************************************************************
 /*                            Release Log                                    */

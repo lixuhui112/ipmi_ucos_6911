@@ -29,6 +29,24 @@
 *
 ******************************************************************************/
 
+uint32_t g_sel_sdr_time = 0;
+uint16_t g_sel_sdr_status = 0;
+
+void ipmi_storage_status_set(uint16_t status)
+{
+    g_sel_sdr_status |= status;
+}
+
+void ipmi_storage_status_clr(uint16_t status)
+{
+    g_sel_sdr_status &= ~status;
+}
+
+void ipmi_storage_status_get(uint16_t *status)
+{
+    *status = g_sel_sdr_status;
+}
+
 int ipmi_cmd_storage(struct ipmi_ctx *ctx_cmd)
 {
     DEBUG("ipmi_cmd_storage\r\n");
@@ -44,17 +62,53 @@ int ipmi_cmd_storage(struct ipmi_ctx *ctx_cmd)
 
         /* SDR Device Commands **********************************************/
         case GET_SDR_REPOS_INFO:                            /* 0x20 */
+            ipmi_get_sdr_repository_info(ctx_cmd);
+            break;
+
         case GET_SDR_REPOS_ALLOC_INFO:                      /* 0x21 */
+            ipmi_get_sdr_repository_allocation_info(ctx_cmd);
+            break;
+
         case RESERVE_SDR_REPOSITORY:                        /* 0x22 */
+            ipmi_reserve_sdr_repository(ctx_cmd);
+            break;
+
         case GET_SDR:                                       /* 0x23 */
+            ipmi_get_sdr(ctx_cmd);
+            break;
+
         case ADD_SDR:                                       /* 0x24 */
+            ipmi_add_sdr(ctx_cmd);
+            break;
+
         case PARTIAL_ADD_SDR:                               /* 0x25 */
+            ipmi_partial_add_sdr(ctx_cmd);
+            break;
+
         case DELETE_SDR:                                    /* 0x26 */
+            ipmi_delete_sdr(ctx_cmd);
+            break;
+
         case CLEAR_SDR_REPOSITORY:                          /* 0x27 */
+            ipmi_clear_sdr_repository(ctx_cmd);
+            break;
+
         case GET_SDR_REPOSITORY_TIME:                       /* 0x28 */
+            ipmi_get_sdr_repository_time(ctx_cmd);
+            break;
+
         case SET_SDR_REPOSITORY_TIME:                       /* 0x29 */
+            ipmi_set_sdr_repository_time(ctx_cmd);
+            break;
+
         case ENTER_SDR_REPOS_UPDATE_MODE:                   /* 0x2a */
+            ipmi_enter_sdr_repository_update_mode(ctx_cmd);
+            break;
+
         case EXIT_SDR_REPOS_UPDATE_MODE:                    /* 0x2b */
+            ipmi_exit_sdr_repository_update_mode(ctx_cmd);
+            break;
+
         case RUN_INITIALIZATION_AGENT:                      /* 0x2c */
             ipmi_cmd_invalid(ctx_cmd);
             break;

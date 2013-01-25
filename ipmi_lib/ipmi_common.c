@@ -13,23 +13,26 @@
 #include "app/lib_common.h"
 #include "ipmi_lib/ipmi_common.h"
 
-int ipmi_cmd_err(struct ipmi_ctx *ctx_cmd, uint8_t error)
+void ipmi_cmd_err(struct ipmi_ctx *ctx_cmd, uint8_t error)
 {
     ctx_cmd->rsp.msg.ccode = error;
     ctx_cmd->rsp.msg.data_len = 0;
-    return 0;
 }
 
-int ipmi_cmd_invalid(struct ipmi_ctx *ctx_cmd)
+void ipmi_cmd_invalid(struct ipmi_ctx *ctx_cmd)
 {
-    return ipmi_cmd_err(ctx_cmd, IPMI_CC_INV_CMD);
+    ipmi_cmd_err(ctx_cmd, IPMI_CC_INV_CMD);
 }
 
-int ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen)
+void ipmi_cmd_ok(struct ipmi_ctx *ctx_cmd, uint8_t datalen)
 {
     ipmi_cmd_err(ctx_cmd, IPMI_CC_OK);
     ctx_cmd->rsp.msg.data_len = datalen;
-    return 0;
+}
+
+void ipmi_cmd_set_flags(struct ipmi_ctx *ctx_cmd, uint8_t flags)
+{
+    ctx_cmd->flags |= flags;
 }
 
 
