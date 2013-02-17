@@ -19,25 +19,23 @@
 #include "app/lib_uart.h"
 #include "ucos_ii.h"
 
-//*****************************************************************************
-//
-// Define the ICMB(UART1) or DEBUG(UART0) TX/RX Buffer
-//
-//*****************************************************************************
-#define UART1_BUF_SIZE  0x80
 
-static unsigned char uart1_rx_buf[UART1_BUF_SIZE];
-static unsigned char uart1_tx_buf[UART1_BUF_SIZE];
-static unsigned char uart1_rx_idx;
-static unsigned char uart1_tx_idx;
-static unsigned char uart1_rx_len;
-static unsigned char uart1_tx_len;
-static unsigned long uart1_rx_timestamp;
+#if (defined(IPMI_MODULES_UART0_DEBUG))
+//*****************************************************************************
+// Define the DEBUG(UART0) TX/RX Buffer
+//*****************************************************************************
+#define UART0_BUF_SIZE  0x80
+
+static unsigned char uart0_rx_buf[UART0_BUF_SIZE];
+static unsigned char uart0_tx_buf[UART0_BUF_SIZE];
+static unsigned char uart0_rx_idx;
+static unsigned char uart0_tx_idx;
+static unsigned char uart0_rx_len;
+static unsigned char uart0_tx_len;
+static unsigned long uart0_rx_timestamp;
 
 //*****************************************************************************
-//
 // The UART0 interrupt handler.
-//
 //*****************************************************************************
 void UART_uart0_int_handler(void)
 {
@@ -53,13 +51,13 @@ void UART_uart0_int_handler(void)
     UARTIntClear(UART0_BASE, ulStatus);
 
     // if recvie frame time out, reset the frame
-    if (OSTimeGet() - uart1_rx_timestamp > SYSTICKHZ * 2)
+    if (OSTimeGet() - uart0_rx_timestamp > SYSTICKHZ * 5)
     {
         uart0_frame = 0;
     }
 
     // save the recvie frame time stamp
-    uart1_rx_timestamp = OSTimeGet();
+    uart0_rx_timestamp = OSTimeGet();
 
     // Loop while there are characters in the receive FIFO.
     while (UARTCharsAvail(UART0_BASE))
@@ -87,10 +85,10 @@ void UART_uart0_int_handler(void)
             if (uart0_size == 0)
             {
                 uart0_size = data;
-                uart1_rx_idx = 0;
-                uart1_rx_len = 0;
+                uart0_rx_idx = 0;
+                uart0_rx_len = 0;
 
-                if (uart0_size > UART1_BUF_SIZE)
+                if (uart0_size > UART0_BUF_SIZE)
                 {
                     uart0_frame = 0;
                     break;
@@ -98,12 +96,12 @@ void UART_uart0_int_handler(void)
             }
 
 
-            uart1_rx_buf[uart1_rx_idx++] = data;
+            uart0_rx_buf[uart0_rx_idx++] = data;
 
-            if (uart1_rx_idx == uart0_size)
+            if (uart0_rx_idx == uart0_size)
             {
                 uart0_frame = 0;
-                uart1_rx_len = uart1_rx_idx;
+                uart0_rx_len = uart0_rx_idx;
                 ipmi_intf_recv_post(IPMI_INTF_DEBUG);
                 break;
             }
@@ -111,9 +109,7 @@ void UART_uart0_int_handler(void)
     }
 }
 //*****************************************************************************
-//
 // Init UART0 hardware as DEBUG
-//
 //*****************************************************************************
 void UART_uart0_init(void)
 {
@@ -145,14 +141,17 @@ int UART_uart0_read(char *buf, unsigned long *size)
     unsigned char i;
 
     DEBUG("debug read:");
-    for (i = 0; i < uart1_rx_len; i++)
+    for (i = 0; i < uart0_rx_len; i++)
     {
-        DEBUG("%02x ", uart1_rx_buf[i]);
-        buf[i] = uart1_rx_buf[i];
+        DEBUG("%02x ", uart0_rx_buf[i]);
+        buf[i] = uart0_rx_buf[i];
     }
-    DEBUG("(%d)\r\n", uart1_rx_len);
+    DEBUG("(%d)\r\n", uart0_rx_len);
 
-    *size = uart1_rx_len;
+    *size = uart0_rx_len;
+
+    uart0_rx_idx = 0;
+    uart0_rx_len = 0;
 
     return 0;
 }
@@ -164,31 +163,45 @@ int UART_uart0_write(char *buf, unsigned long size)
     // 先写前导码
     for (i = 0; i < sizeof(IPMI_FRAME_CHAR); i++)
     {
-        uart1_tx_buf[i] = IPMI_FRAME_CHAR[i];
+        uart0_tx_buf[i] = IPMI_FRAME_CHAR[i];
     }
 
     // 写数据
-    for (j = 0; j < size && i < UART1_BUF_SIZE; j++, i++)
+    for (j = 0; j < size && i < UART0_BUF_SIZE; j++, i++)
     {
-        uart1_tx_buf[i] = buf[j];
+        uart0_tx_buf[i] = buf[j];
     }
 
-    uart1_tx_len = i;
+    uart0_tx_len = i;
 
-    DEBUG("debug write(%d):", uart1_tx_len);
-    for (uart1_tx_idx = 0; uart1_tx_idx < uart1_tx_len; uart1_tx_idx++)
+    DEBUG("debug write(%d):", uart0_tx_len);
+    for (uart0_tx_idx = 0; uart0_tx_idx < uart0_tx_len; uart0_tx_idx++)
     {
-        DEBUG("%02x ", uart1_tx_buf[uart1_tx_idx]);
-        UARTCharPut(UART0_BASE, uart1_tx_buf[uart1_tx_idx]);
+        DEBUG("%02x ", uart0_tx_buf[uart0_tx_idx]);
+        UARTCharPut(UART0_BASE, uart0_tx_buf[uart0_tx_idx]);
     }
     DEBUG("\r\n");
 
-    uart1_tx_len = 0;
-    uart1_tx_idx = 0;
+    uart0_tx_len = 0;
+    uart0_tx_idx = 0;
 
     return 0;
 }
+#endif
 
+
+#if (defined(IPMI_MODULES_UART1_ICMB))
+//*****************************************************************************
+// Define the ICMB(UART1) TX/RX Buffer
+//*****************************************************************************
+#define UART1_BUF_SIZE  0x80
+static unsigned char uart1_rx_buf[UART1_BUF_SIZE];
+static unsigned char uart1_tx_buf[UART1_BUF_SIZE];
+static unsigned char uart1_rx_idx;
+static unsigned char uart1_tx_idx;
+static unsigned char uart1_rx_len;
+static unsigned char uart1_tx_len;
+static unsigned long uart1_rx_timestamp;
 
 //*****************************************************************************
 //
@@ -208,8 +221,24 @@ void UART_uart1_int_handler(void)
     // Clear the asserted interrupts.
     UARTIntClear(UART1_BASE, ulStatus);
 
+    // IPMI-SOL to ICMB function
+    if ((ipmi_global.flags & BMC_SOL_MASK) == BMC_SOL_ON)
+    {
+        long ch;
+
+        ch = UARTCharGetNonBlocking(UART1_BASE);
+
+        // TODO
+        // read UART2 uart2_rx_buf to Ethernet
+        // and uart2_tx_buf from Ethernet to UART2
+
+        // just for loop test [[ CPU <-> UART2 <-> UART1 ]]
+        while (UARTCharPutNonBlocking(UART2_BASE, ch) == false);
+        return;
+    }
+
     // if recvie frame time out, reset the frame
-    if (OSTimeGet() - uart1_rx_timestamp > SYSTICKHZ * 2)
+    if (OSTimeGet() - uart1_rx_timestamp > SYSTICKHZ * 5)
     {
         uart1_frame = 0;
     }
@@ -222,6 +251,8 @@ void UART_uart1_int_handler(void)
     {
         // Read the character from the UART.
         data = (unsigned char)UARTCharGetNonBlocking(UART1_BASE);
+
+        DEBUG("uart1 < 0x%x\r\n", data);
 
         // 检测前导码
         if (uart1_frame < sizeof (IPMI_FRAME_CHAR))
@@ -245,6 +276,12 @@ void UART_uart1_int_handler(void)
                 uart1_size = data;
                 uart1_rx_idx = 0;
                 uart1_rx_len = 0;
+
+                if (uart1_size > UART1_BUF_SIZE)
+                {
+                    uart1_frame = 0;
+                    break;
+                }
             }
 
             uart1_rx_buf[uart1_rx_idx++] = data;
@@ -269,12 +306,18 @@ int UART_uart1_read(char *buf, unsigned long *size)
 {
     unsigned char i;
 
+    DEBUG("uart1 read(%d):", uart1_rx_len);
     for (i = 0; i < uart1_rx_len; i++)
     {
+        DEBUG("%02x ", uart1_rx_buf[i]);
         buf[i] = uart1_rx_buf[i];
     }
+    DEBUG("\r\n");
 
     *size = uart1_rx_len;
+
+    uart1_rx_idx = 0;
+    uart1_rx_len = 0;
 
     return 0;
 }
@@ -341,8 +384,10 @@ void UART_uart1_init(void)
     IntEnable(INT_UART1);
     UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT);
 }
+#endif
 
 
+#if (defined(IPMI_MODULES_UART2_SOL))
 #define UART2_BUF_SIZE  0x80
 static unsigned char uart2_rx_buf[UART2_BUF_SIZE];
 static unsigned char uart2_tx_buf[UART2_BUF_SIZE];
@@ -366,20 +411,40 @@ void UART_uart2_int_handler(void)
     // Clear the asserted interrupts.
     UARTIntClear(UART2_BASE, ulStatus);
 
-    // Loop while there are characters in the receive FIFO.
-    while (UARTCharsAvail(UART2_BASE))
+    // IPMI-SOL is activate
+    // IPMI-SOL to ICMB function
+    if ((ipmi_global.flags & BMC_SOL_MASK) == BMC_SOL_ON)
     {
-        // Read the next character from the UART2 and write it back to the UART1.
-        ch = UARTCharGetNonBlocking(UART2_BASE);
-        uart2_rx_buf[uart2_rx_idx++] = (unsigned char)ch;
-        uart2_rx_idx = uart2_rx_idx % UART2_BUF_SIZE;
-        // TODO
-        // read UART2 uart2_rx_buf to SOL(Ethernet)
-        // and uart2_tx_buf from SOL to UART2
+        // Loop while there are characters in the receive FIFO.
+        while (UARTCharsAvail(UART2_BASE))
+        {
+            // Read the next character from the UART2 and write it back to the UART1.
+            ch = UARTCharGetNonBlocking(UART2_BASE);
 
-        // just for loop test [[ CPU -> UART2 -> UART1 ]]
-        while (UARTCharPutNonBlocking(UART1_BASE, ch) == false);
+            DEBUG("uart2 < 0x%x\r\n", (char)ch);
+
+            uart2_rx_buf[uart2_rx_idx++] = (unsigned char)ch;
+            uart2_rx_idx = uart2_rx_idx % UART2_BUF_SIZE;
+
+            // TODO
+            // read UART2 uart2_rx_buf to Ethernet
+            // and uart2_tx_buf from Ethernet to UART2
+
+            // just for loop test [[ CPU -> UART2 -> UART1 ]]
+            while (UARTCharPutNonBlocking(UART1_BASE, ch) == false);
+        }
+
+    // IPMI-SOL is deactivate
+    } else {
+
+        // Loop while there are characters in the receive FIFO.
+        while (UARTCharsAvail(UART2_BASE))
+        {
+            // Read the character from the UART2 and drop it.
+            ch = UARTCharGetNonBlocking(UART2_BASE);
+        }
     }
+
 }
 
 //*****************************************************************************
@@ -447,7 +512,7 @@ int UART_uart2_write(char *buf, unsigned long size)
 
     return 0;
 }
-
+#endif
 
 //*****************************************************************************
 //

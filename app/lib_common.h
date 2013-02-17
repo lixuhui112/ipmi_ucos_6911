@@ -12,11 +12,14 @@
 
 #include <stdarg.h>
 #include <inttypes.h>
-#include "inc/hw_types.h"
+#include <inc/hw_types.h>
+#include <inc/hw_ints.h>
+#include "ipmi_lib/ipmi_common.h"
 #include "third_party/uartstdio.h"
+#include "third_party/ustdlib.h"
 
 #define IPMI_DEBUG
-//#undef  IPMI_DEBUG
+#undef  IPMI_DEBUG
 
 #ifdef  IPMI_DEBUG
 #define DEBUG(msg...)   UARTprintf(##msg)
@@ -43,25 +46,7 @@ void delay(unsigned long ulSeconds);
 void mdelay(int ms);
 void init_fail(void);
 
-
-//*****************************************************************************
-//
-// Defines for Type of BaseBoard.
-//
-//*****************************************************************************
-#define BOARD_TYPE_FABRIC       0x01
-#define BOARD_TYPE_SWITCH       0x02
-#define BOARD_TYPE_FAN          0x03
-#define BOARD_TYPE_POWER        0x04
-#define BOARD_TYPE_SWITCH10G    0x05
-#define BOARD_TYPE_NONE         0xff
-
-extern uint8_t g_slot_addr;
-extern uint8_t g_board_type;
-extern uint8_t g_present_ok;
-
-uint8_t board_type(void);
-
+extern ipmi_global_t ipmi_global;
 
 #endif  //__LIB_COMMON_H__
 

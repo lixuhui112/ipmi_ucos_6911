@@ -32,17 +32,47 @@ History:
 
 #define MAX_UCD9081_SENSOR_COUNT    8
 
-#define RAIL_VOL_R              3.3                     /* Voltage Reference */
-#define RAIL_VOL_DIV_UP_1       1.96
-#define RAIL_VOL_DIV_DN_1       1.96
-#define RAIL_VOL_DIV_UP_2       1.96
-#define RAIL_VOL_DIV_DN_2       1.96
+#if (defined(BOARD_6911_SWITCH))
+#define RAIL_VOL_DIV_UP_1       0
+#define RAIL_VOL_DIV_DN_1       0
+#define RAIL_VOL_DIV_UP_2       0
+#define RAIL_VOL_DIV_DN_2       0
 #define RAIL_VOL_DIV_UP_3       0
 #define RAIL_VOL_DIV_DN_3       0
 #define RAIL_VOL_DIV_UP_4       0
 #define RAIL_VOL_DIV_DN_4       0
-#define RAIL_VOL_DIV_UP_5       0
-#define RAIL_VOL_DIV_DN_5       0
+#define RAIL_VOL_DIV_UP_5       1.96
+#define RAIL_VOL_DIV_DN_5       1.96
+#define RAIL_VOL_DIV_UP_6       1.96
+#define RAIL_VOL_DIV_DN_6       1.96
+#define RAIL_VOL_DIV_UP_7       0
+#define RAIL_VOL_DIV_DN_7       0
+#define RAIL_VOL_DIV_UP_8       0
+#define RAIL_VOL_DIV_DN_8       0
+
+#define UCD9081_VOL_REF         3.30                    /* 参考电压值 */
+
+#define UCD9081_VOL_RAIL_1      1.00                    /* 监控的标准电压值 */
+#define UCD9081_VOL_RAIL_2      1.20
+#define UCD9081_VOL_RAIL_3      1.20
+#define UCD9081_VOL_RAIL_4      1.80
+#define UCD9081_VOL_RAIL_5      2.50
+#define UCD9081_VOL_RAIL_6      3.30
+#define UCD9081_VOL_RAIL_7      0
+#define UCD9081_VOL_RAIL_8      0
+#endif
+
+#if (defined(BOARD_6911_FABRIC))
+#define RAIL_VOL_DIV_UP_1       1.96
+#define RAIL_VOL_DIV_DN_1       1.96
+#define RAIL_VOL_DIV_UP_2       0
+#define RAIL_VOL_DIV_DN_2       0
+#define RAIL_VOL_DIV_UP_3       0
+#define RAIL_VOL_DIV_DN_3       0
+#define RAIL_VOL_DIV_UP_4       0
+#define RAIL_VOL_DIV_DN_4       0
+#define RAIL_VOL_DIV_UP_5       1.96
+#define RAIL_VOL_DIV_DN_5       1.96
 #define RAIL_VOL_DIV_UP_6       0
 #define RAIL_VOL_DIV_DN_6       0
 #define RAIL_VOL_DIV_UP_7       0
@@ -50,15 +80,17 @@ History:
 #define RAIL_VOL_DIV_UP_8       0
 #define RAIL_VOL_DIV_DN_8       0
 
-#define UCD9081_VOL_REFERENCE   2.50                    /* 参考电压值 */
-#define UCD9081_VOL_RAIL_1      1.00                    /* 监控的标准电压值 */
-#define UCD9081_VOL_RAIL_2      1.25
-#define UCD9081_VOL_RAIL_3      1.50
+#define UCD9081_VOL_REF         3.30                    /* 参考电压值 */
+
+#define UCD9081_VOL_RAIL_1      3.30                    /* 监控的标准电压值 */
+#define UCD9081_VOL_RAIL_2      1.20
+#define UCD9081_VOL_RAIL_3      1.00
 #define UCD9081_VOL_RAIL_4      1.80
 #define UCD9081_VOL_RAIL_5      2.50
-#define UCD9081_VOL_RAIL_6      3.30
+#define UCD9081_VOL_RAIL_6      0
 #define UCD9081_VOL_RAIL_7      0
 #define UCD9081_VOL_RAIL_8      0
+#endif
 
 #define UCD9081_REG_RAIL_1      0x00                    /* 寄存器地址 */
 #define UCD9081_REG_RAIL_2      0x02
@@ -124,10 +156,10 @@ typedef struct ucd9081_rail_vol_tbl {
 	float rail_vol;     /* referece voltage */
 	float rail_uv;      /* under voltage */
 	float rail_ov;      /* over voltage */
+	float r_div_up;     /* up resistance */
+	float r_div_dn;     /* down resistance */
 	uint8_t rail_reg;   /* voltage register */
 } UCD9081_VOL_RAIL_TBL;
-
-#define RAW_2_VAL(v)            ((float)(v) * 25 / 1024)  /* 寄存器电压转换 */
 
 SDR_RECORD_FULL ucd9081_sr[MAX_UCD9081_SENSOR_COUNT];
 sensor_data_t ucd9081_sd[MAX_UCD9081_SENSOR_COUNT];
@@ -149,48 +181,64 @@ const UCD9081_VOL_RAIL_TBL ucd9081_vol_tbl[MAX_UCD9081_SENSOR_COUNT] =
         .rail_vol = (float)(UCD9081_VOL_RAIL_1),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_1),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_1),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_1),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_1),
         .rail_reg = UCD9081_REG_RAIL_1,
     },
     {   /* rail 1 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_2),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_2),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_2),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_2),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_2),
         .rail_reg = UCD9081_REG_RAIL_2,
     },
     {   /* rail 2 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_3),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_3),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_3),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_3),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_3),
         .rail_reg = UCD9081_REG_RAIL_3,
     },
     {   /* rail 3 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_4),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_4),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_4),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_4),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_4),
         .rail_reg = UCD9081_REG_RAIL_4,
     },
     {   /* rail 4 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_5),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_5),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_5),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_5),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_5),
         .rail_reg = UCD9081_REG_RAIL_5,
     },
     {   /* rail 5 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_6),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_6),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_6),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_6),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_6),
         .rail_reg = UCD9081_REG_RAIL_6,
     },
     {   /* rail 6 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_7),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_7),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_7),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_7),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_7),
         .rail_reg = UCD9081_REG_RAIL_7,
     },
     {   /* rail 7 */
         .rail_vol = (float)(UCD9081_VOL_RAIL_8),
         .rail_uv  = (float)VOL_2_UV(UCD9081_VOL_RAIL_8),
         .rail_ov  = (float)VOL_2_OV(UCD9081_VOL_RAIL_8),
+        .r_div_up = (float)(RAIL_VOL_DIV_UP_8),
+        .r_div_dn = (float)(RAIL_VOL_DIV_DN_8),
         .rail_reg = UCD9081_REG_RAIL_8,
     },
 };
@@ -199,12 +247,13 @@ uint8_t ucd9081_raw2val(uint8_t ucd9081_id, uint16_t raw)
 {
     float val = 0;
 
-    if (ucd9081_id < 4) {
-        val = ((float)(raw) * 33 / 1024);         /* 寄存器电压转换 */
+    if (ucd9081_vol_tbl[ucd9081_id].r_div_up == 0.0) {
+        val = ((float)(raw) * UCD9081_VOL_REF / 1024);         /* 寄存器电压转换 */
     } else {
-        val = ((float)(raw) * 33 / 1024) * ((RAIL_VOL_DIV_UP_1 + RAIL_VOL_DIV_DN_1) / RAIL_VOL_DIV_DN_1);
+        val = ((float)(raw) * UCD9081_VOL_REF / 1024) *
+            ((ucd9081_vol_tbl[ucd9081_id].r_div_up + ucd9081_vol_tbl[ucd9081_id].r_div_dn) / ucd9081_vol_tbl[ucd9081_id].r_div_dn);
     }
-    return (uint8_t)lround(val);
+    return (uint8_t)lround(SENSOR_VAL2RAW(val, UCD9081_M, UCD9081_B, UCD9081_K1, UCD9081_K2));
 }
 
 void ucd9081_int_handler(void *param)

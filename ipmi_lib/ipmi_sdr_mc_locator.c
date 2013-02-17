@@ -25,32 +25,28 @@ History:
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_MC_COUNT                11
-
-const unsigned char mc_locator_addr[MAX_MC_COUNT] = {       /* 7-bit slaver i2c address */
-    0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b
-};
-
-SDR_RECORD_MC_LOCATOR mc_locator_sr[MAX_MC_COUNT];
-sensor_data_t mc_locator_sd[MAX_MC_COUNT];
-I2C_DEVICE mc_locator_dev[MAX_MC_COUNT];
+SDR_RECORD_MC_LOCATOR mc_locator_sr[BOARD_MAX_COUNT];
+sensor_data_t mc_locator_sd[BOARD_MAX_COUNT];
+I2C_DEVICE mc_locator_dev[BOARD_MAX_COUNT];
 
 void mc_locator_scan_function(void *arg)
 {
     /* TODO -V2.0
      * 通过IPMB总线遍历所有板卡,并标识其在位状态 mc_locator_sd.unavailable
      */
-    static uint8_t onoff = 0;
-
+    uint8_t idx;
     uint32_t error;
-    char mc_info[32] = {0};
     struct ipmi_req *req;
     struct mc_locator_notify_req *req_data;
     sensor_data_t *sd = (sensor_data_t *)arg;
+    char mc_info[32] = {0};
 
     // test for blink led0
-    IO_led0_set(onoff);
-    onoff = !onoff;
+    {
+        static uint8_t onoff = 0;
+        IO_led0_set(onoff);
+        onoff = !onoff;
+    }
 
     // set default sensor data attribute
     sd->unavailable = 1;
@@ -60,9 +56,9 @@ void mc_locator_scan_function(void *arg)
 	req = (struct ipmi_req *)&mc_info[0];
 
     // fill the message header
-    req->msg.data_len = 7 + sizeof(struct mc_locator_notify_req);
-	req->msg.rs_sa = ((SDR_RECORD_MC_LOCATOR *)(sd->sdr_record->record_ptr))->key.dev_slave_addr; // mc_locator_device_id
-    req->msg.netfn = IPMI_NETFN_TRANSPORT;
+    req->msg.data_len = sizeof(struct _ipmi_req_cmd) + sizeof(struct mc_locator_notify_req);
+	req->msg.rs_sa = SDR_MC_LOCATOR_ADDR(sd->sdr_record->record_ptr);   // mc_locator_device_id
+    req->msg.netfn = IPMI_NETFN_REQ_TRANSPORT;
     req->msg.rs_lun = 0x0;
     req->msg.checksum1 = 0xff;
     req->msg.rq_sa = I2C_i2c0_ipmb_self_addr_get();
@@ -72,59 +68,87 @@ void mc_locator_scan_function(void *arg)
 
     // fill the message content data
     req_data = (struct mc_locator_notify_req *)&req->data[0];
-    req_data->device_id = ipmi_common_get_device_id();
-    req_data->device_revision = (((IPMI_DEV_SDR|IPMI_DEV_SENSOR) ? IPM_DEV_DEVICE_ID_SDR_MASK : 0) |
-                                  (ipmi_common_get_device_revision() & IPM_DEV_DEVICE_ID_REV_MASK));
-    req_data->fw_rev1 = (device_available << 7) | IPMI_FIRMWARE_VER_MAJOR;
-    req_data->fw_rev2 = IPMI_FIRMWARE_VER_MINOR;
-    req_data->ipmi_version = IPMI_VERSION;
-    req_data->adtl_device_support = IPM_DEV_DEVICE_ADT;
-    req_data->manufacturer_id[0] = IPMI_DEV_MANUFACTURER_ID_2;
-    req_data->manufacturer_id[1] = IPMI_DEV_MANUFACTURER_ID_1;
-    req_data->manufacturer_id[2] = IPMI_DEV_MANUFACTURER_ID_0;
-    req_data->product_id[0] = ipmi_common_get_product_id();
-    req_data->product_id[1] = 0;
-    req_data->aux_fw_rev[0] = IPMI_AUXILIARY_VERSION & 0xff;
-    req_data->aux_fw_rev[1] = (IPMI_AUXILIARY_VERSION >> 8) & 0xff;
-    req_data->aux_fw_rev[2] = (IPMI_AUXILIARY_VERSION >> 16) & 0xff;
-    req_data->aux_fw_rev[3] = (IPMI_AUXILIARY_VERSION >> 24) & 0xff;
+    req_data->alive_bmc_map = ipmi_global.alive_bmc_map;
+    req_data->timestamp = ipmi_global.timestamp;
+    req_data->flags = (ipmi_global.flags & BMC_SYNC_TIME_MASK);
 
     if (req->msg.rs_sa == req->msg.rq_sa) {
         return;
     }
 
-    DEBUG("mc_locator_scan addr=0x%x ", req->msg.rs_sa);
     error = I2C_i2c0_ipmb_write(req->msg.rs_sa, mc_info, req->msg.data_len);
+    DEBUG("mc_locator_scan rq_sa=0x%x, rs_sa=0x%x err=0x%x\r\n", req->msg.rq_sa, req->msg.rs_sa, error);
+    DEBUG("old ipmi_global.alive_bmc_map=0x%08x\r\n", ipmi_global.alive_bmc_map);
 
-    DEBUG(" error=0x%x\r\n", error);
+    idx = ipmi_ipmbaddr_to_index(req->msg.rs_sa);
+
     if (error) {
-        if (error == I2C_MASTER_ERR_ARB_LOST) {
+        // if IIC bus lost
+        if (error & I2C_MASTER_ERR_ARB_LOST) {
             sd->retry = 1;
         }
+
+        // new state with bmc_locator, generic a event message
+        if (ipmi_alive_bmc_map_get(idx)) {
+            struct event_request_message evt_msg;
+
+            evt_msg.sensor_type = SENSOR_TYPE_MODUBRD;
+            evt_msg.sensor_num = req->msg.rs_sa;
+            evt_msg.event_type = EVENT_TYPE_ASS_DRI;
+            evt_msg.event_dir = EVENT_DIR_ASSERT;
+            evt_msg.event_data[0] = 0;
+            evt_msg.event_data[1] = 0;
+            evt_msg.event_data[2] = 0;
+
+            ipmi_evt_msg_generic(&evt_msg);
+            DEBUG("generic event message sensor_num#0x%x\r\n", evt_msg.sensor_num);
+        }
+
+        // clear the alive/map bit
+        SDR_MC_LOCATOR_ALIVE(sd->sdr_record->record_ptr, 0);
+        ipmi_alive_bmc_map_clr(idx);
+
     } else {
+        // rs_sa ack ok, remote bmc is alive
         sd->unavailable = 0;
+        SDR_MC_LOCATOR_ALIVE(sd->sdr_record->record_ptr, 1);
+        ipmi_alive_bmc_map_set(idx);
     }
+    DEBUG("new ipmi_global.alive_bmc_map=0x%08x\r\n", ipmi_global.alive_bmc_map);
 }
 
 void mc_locator_sett_function(void *arg)
 {
 }
 
-void mc_location_alive(uint8_t addr)
+void mc_location_alive(uint8_t rq_sa, struct mc_locator_notify_req *req)
 {
-    for (int i = 0; i < MAX_MC_COUNT; i++) {
-        if (mc_locator_sr[i].key.dev_slave_addr == addr) {
-            DEBUG("mc_locator_%d (addr=0x%x) is alive\r\n", i, addr);
+    DEBUG("bmc rq_sa=0x%x flags=0x%x, timestamp=0x%x, alive_bmc_map=0x%08x\r\n",
+        rq_sa, req->flags, req->timestamp, req->alive_bmc_map);
+
+    if ((ipmi_global.flags & BMC_SYNC_TIME_MASK) > (req->flags & BMC_SYNC_TIME_MASK)) {
+        ipmi_global.timestamp = req->timestamp;
+    }
+
+    for (uint8_t i = 0; i < BOARD_MAX_COUNT; i++) {
+
+        // set sensor data alive bit
+        if (mc_locator_sr[i].key.dev_slave_addr == rq_sa) {
+            DEBUG("mc_locator_%d (addr=0x%x) is alive\r\n", i, rq_sa);
             mc_locator_sr[i].key.alive = 1;
-        } else if (mc_locator_sr[i].key.dev_slave_addr > addr) {    // clear behind alive status
-            mc_locator_sr[i].key.alive = 0;
+        }
+
+        // set alive_bmc_map bit
+        if (ipmi_board_table[i].ipmb_self_addr == rq_sa) {
+            ipmi_board_table[i].ipmb_timestamp = ipmi_global.timestamp;
+            ipmi_alive_bmc_map_set(i);
         }
     }
 }
 
 void mc_locator_init_dev(uint8_t i)
 {
-    I2C_i2c0_slave_dev_init(&mc_locator_dev[i], mc_locator_addr[i], 1);
+    I2C_i2c0_slave_dev_init(&mc_locator_dev[i], ipmi_board_table[i].ipmb_self_addr, 1);
 }
 
 void mc_locator_init_sensor_record(uint8_t i)
@@ -138,8 +162,14 @@ void mc_locator_init_sensor_record(uint8_t i)
 	mc_locator_sr[i].header.record_len          = sizeof(SDR_RECORD_MC_LOCATOR);
 
 	/* RECORD KEY BYTES */
-	mc_locator_sr[i].key.dev_slave_addr         = mc_locator_addr[i];
+	mc_locator_sr[i].key.dev_slave_addr         = ipmi_board_table[i].ipmb_self_addr;
 	mc_locator_sr[i].key.channel_num            = 0;
+
+	if (mc_locator_sr[i].key.dev_slave_addr == ipmi_global.ipmb_addr) {
+	    mc_locator_sr[i].key.alive = 1;
+	} else {
+	    mc_locator_sr[i].key.alive = 0;
+	}
 
     mc_locator_sr[i].pow_state_noti.acpi_sys_pwr_st_notify_req = 0;
     mc_locator_sr[i].pow_state_noti.acpi_dev_pwr_st_notify_req = 0;
@@ -162,7 +192,7 @@ void mc_locator_init_sensor_record(uint8_t i)
 
     mc_locator_sr[i].oem = 0;
     mc_locator_sr[i].id_type_length.type = 3;                               /* 11 = 8-bit ASCII + Latin 1. */
-	snprintf(id_string, 16, "mc-locator-%d", i);
+	snprintf(id_string, 16, "bmc%d-%s", i, ipmi_board_table[i].board_type_str);
     mc_locator_sr[i].id_type_length.length = strlen(id_string);             /* length of following data, in characters */
     memcpy(mc_locator_sr[i].id_string_bytes, id_string, strlen(id_string));
 
@@ -187,7 +217,7 @@ void mc_locator_init(void)
 {
     uint8_t i;
 
-    for (i = 0; i < MAX_MC_COUNT; i++)
+    for (i = 0; i < BOARD_MAX_COUNT; i++)
     {
         mc_locator_init_dev(i);
         mc_locator_init_sensor_record(i);

@@ -26,16 +26,17 @@ OS_TMR *ipmi_timer;
 // Defines IPMI Generic Timer Task, shot per second
 //
 //*****************************************************************************
-extern uint32_t g_sel_sdr_time;
 extern void ipmi_sensor_scan_period(void);
+extern void ipmi_sensor_dead_limit(void);
 void ipmi_timer_task(void *ptmr, void *param)
 {
     // add storage time per second
-    g_sel_sdr_time++;
+    ipmi_global.timestamp++;
 
     // scan sensor chip who use period function per second
-    if (g_sel_sdr_time % 5) {
+    if (ipmi_global.timestamp % IPMI_SENSOR_SCAN_PERIOD == 0) {
         ipmi_sensor_scan_period();
+        //ipmi_sensor_dead_limit();     // no use
     }
 }
 

@@ -12,6 +12,7 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"
 #include "ipmi_lib/ipmi_modules.h"
+#include "ipmi_lib/ipmi_cfg.h"
 #include "app/lib_gpio.h"
 #include "app/lib_io.h"
 #include "app/lib_common.h"
@@ -22,10 +23,6 @@ static uint32_t gpio_c_int_mask;
 static IO_INT *gpio_a_int_table[8];
 static IO_INT *gpio_b_int_table[8];
 static IO_INT *gpio_c_int_table[8];
-
-extern uint8_t g_slot_addr;
-extern uint8_t g_board_type;
-extern uint8_t g_present_ok;
 
 
 #if (defined(IPMI_MODULES_GPIO_CPU_LED))
@@ -544,35 +541,46 @@ void IO_gpio_c_int_handler(void)
 //*****************************************************************************
 void IO_init(void)
 {
-#if (defined(IPMI_MODULES_GPIO_SLOT_ADDR))
-    IO_slot_addr_init();                                            // 槽位地址初始化
-    g_slot_addr = IO_slot_addr_get();
-    DEBUG("g_slot_addr=0x%x\r\n", g_slot_addr);
+#if (defined(IPMI_MODULES_GPIO_SLOT_ADDR))                          // 槽位地址初始化
+    IO_slot_addr_init();
+    ipmi_global.slot_addr = IO_slot_addr_get();
+    DEBUG("slot_addr=0x%x\r\n", ipmi_global.slot_addr);
+
+    if (ipmi_global.slot_addr < IPMI_SLOT_ADDR_MIN || ipmi_global.slot_addr > IPMI_SLOT_ADDR_MAX)
+    {
+        ipmi_global.slot_addr = IPMI_SLOT_ADDR_MIN;
+    }
+    ipmi_global.slot_addr = 0x03;   // just for test
 #endif
 
-#if (defined(IPMI_MODULES_GPIO_BOARD_TYPE))
-    IO_board_type_init();                                           // 板卡类型初始化
-    g_board_type = IO_board_type_get();
-    DEBUG("g_board_type=0x%x\r\n", g_board_type);
+#if (defined(IPMI_MODULES_I2C0_IPMB))
+    ipmi_global.ipmb_addr = IPMB_SLAVE_ADDR_BASE + ipmi_global.slot_addr;
+    DEBUG("ipmb_addr=0x%x\r\n", ipmi_global.ipmb_addr);
 #endif
 
-#if (defined(IPMI_MODULES_GPIO_WATCHDOG))
-    IO_watchdog_init();                                             // 看门狗初始化
+#if (defined(IPMI_MODULES_GPIO_BOARD_TYPE))                         // 板卡类型初始化
+    IO_board_type_init();
+    ipmi_global.board_type = ipmi_board_type(ipmi_global.slot_addr) | IO_board_type_get();
+    DEBUG("board_type=0x%x\r\n", ipmi_global.board_type);
 #endif
 
-#if (defined(IPMI_MODULES_GPIO_PRESENT))
-    IO_present_init();                                              // 在位信号初始化并通知主控
-    g_present_ok = IO_present_check();
-    DEBUG("g_present_ok=0x%x\r\n", g_present_ok);
-    if (g_present_ok)
+#if (defined(IPMI_MODULES_GPIO_WATCHDOG))                           // 看门狗初始化
+    IO_watchdog_init();
+#endif
+
+#if (defined(IPMI_MODULES_GPIO_PRESENT))                            // 在位信号初始化并通知主控
+    IO_present_init();
+    ipmi_global.present_ok = IO_present_check();
+    if (ipmi_global.present_ok)
     {
         IO_present_ok_fab(1);
     }
+    DEBUG("present_ok=0x%x\r\n", ipmi_global.present_ok);
 #endif
 
 #if (defined(IPMI_MODULES_GPIO_SOL_SEL))
     IO_sol_init();                                                  // SOL硬件初始化
-    IO_sol_set(0);
+    IO_sol_set(0);                                                  // SOL关闭
 #endif
 
 #if (defined(IPMI_MODULES_GPIO_I2C_HOTSWAP_SEL))

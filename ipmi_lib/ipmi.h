@@ -17,13 +17,20 @@
 /* NetFn
  * See IPMI specification table 5-1 Network Function Codes
  */
-#define IPMI_NETFN_CHASSIS                          0x0
-#define IPMI_NETFN_BRIDGE                           0x2
-#define IPMI_NETFN_SE                               0x4
-#define IPMI_NETFN_APP                              0x6
-#define IPMI_NETFN_FIRMWARE                         0x8
-#define IPMI_NETFN_STORAGE                          0xa
-#define IPMI_NETFN_TRANSPORT                        0xc
+#define IPMI_NETFN_REQ_CHASSIS                      0x00
+#define IPMI_NETFN_RSP_CHASSIS                      0x01
+#define IPMI_NETFN_REQ_BRIDGE                       0x02
+#define IPMI_NETFN_RSP_BRIDGE                       0x03
+#define IPMI_NETFN_REQ_SE                           0x04
+#define IPMI_NETFN_RSP_SE                           0x05
+#define IPMI_NETFN_REQ_APP                          0x06
+#define IPMI_NETFN_RSP_APP                          0x07
+#define IPMI_NETFN_REQ_FIRMWARE                     0x08
+#define IPMI_NETFN_RSP_FIRMWARE                     0x09
+#define IPMI_NETFN_REQ_STORAGE                      0x0a
+#define IPMI_NETFN_RSP_STORAGE                      0x0b
+#define IPMI_NETFN_REQ_TRANSPORT                    0x0c
+#define IPMI_NETFN_RSP_TRANSPORT                    0x0d
 #define IPMI_NETFN_PICMG                            0x2c
 #define IPMI_NETFN_DCGRP                            0x2c
 #define IPMI_NETFN_ISOL                             0x34
@@ -64,6 +71,12 @@
 #define IPMI_CC_RECORD_REJECTED_DUE_TO_MISMATCH     0x80    // "Record rejected due to mismatch between record length in header data and number of bytes written."
 #define IPMI_CC_SEL_ERASE_PROGRESS                  0x81    // "Cannot execute command, SEL erase in progress"
 
+#define IPMI_CC_INVALID_SESSION_HANDLE              0x80    // "Invalid Session Handle"
+#define IPMI_CC_LOST_ARBITRATION                    0x81    // "Lost Arbitration"
+#define IPMI_CC_BUS_ERROR                           0x82    // "Bus Error"
+#define IPMI_CC_NAK_ON_WRITE                        0x83    // "NAK on Write"
+
+
 /* CHANNEL NUMBERS */
 /* Each interface has a channel number that is used when configuring the channel
  * and for routing messages between channels. Only the channel number assignments
@@ -75,13 +88,14 @@
 /* CH_NUM
  * See IPMI specification Table 6-1, Channel Number Assignments
  */
-#define IPMI_CH_NUM_PRIMARY_IPMB                    0x0
-#define IPMI_CH_NUM_CONSOLE                         0x1
-#define IPMI_CH_NUM_ICMB                            0x2
-#define IPMI_CH_NUM_PMB                             0x3
-#define IPMI_CH_NUM_LAN                             0x7
-#define IPMI_CH_NUM_PRESENT_INTERFACE               0xE
-#define IPMI_CH_NUM_SYS_INTERFACE                   0xF
+#define IPMI_CH_NUM_PRIMARY_IPMB                    0x00
+#define IPMI_CH_NUM_CONSOLE                         0x01
+#define IPMI_CH_NUM_ICMB                            0x02
+#define IPMI_CH_NUM_PMB                             0x03
+#define IPMI_CH_NUM_LAN                             0x07
+#define IPMI_CH_NUM_PRESENT_INTERFACE               0x0E
+#define IPMI_CH_NUM_SYS_INTERFACE                   0x0F
+#define IPMI_CH_NUM_MAX                             0xFF
 
 /* CHANNEL PROTOCOL TYPE */
 /* The protocol used for transferring IPMI messages on a given channel is
@@ -121,6 +135,11 @@
 #define IPMI_CH_MEDIUM_SYS                          0xC     /* System Interface (KCS, SMIC, or BT)   */
 
 
+#define IPMI_CH_SESSION_LESS                        0x0
+#define IPMI_CH_SESSION_SINGLE                      0x1
+#define IPMI_CH_SESSION_MUILTY                      0x2
+#define IPMI_CH_SESSION_BASED                       0x3
+
 /* IPMI Sensor Type
  * See IPMI specification Table 42-3, Sensor Type Codes
  */
@@ -128,11 +147,148 @@
 #define SENSOR_TYPE_VOLTAGE                         0x02    // Voltage
 #define SENSOR_TYPE_CURRENT                         0x03    // Current
 #define SENSOR_TYPE_FAN                             0x04    // Fan
-#define SENSOR_TYPE_PS                              0x05    // Physical Security (Chassis Intrusion)
-#define SENSOR_TYPE_PSVA                            0x06    // Platform Security Violation Attempt
+#define SENSOR_TYPE_PSCRT                           0x05    // Physical Security (Chassis Intrusion)
+#define SENSOR_TYPE_PSCRTVA                         0x06    // Platform Security Violation Attempt
 #define SENSOR_TYPE_PROCESSOR                       0x07    // Processor
 #define SENSOR_TYPE_POW_SU                          0x08    // Power Supply
+#define SENSOR_TYPE_POW_UNIT                        0x09    // Power Unit
+#define SENSOR_TYPE_COOLING_Device                  0x0a    // Cooling Device
+#define SENSOR_TYPE_OUNISENSOR                      0x0b    // Other Units-based Sensor
+#define SENSOR_TYPE_MEMORY                          0x0c    // Memory
+#define SENSOR_TYPE_DRVSLOT                         0x0d    // Drive Slot
+#define SENSOR_TYPE_PMEMRSZ                         0x0e    // POST Memory Resize
+#define SENSOR_TYPE_SYSFRMPRG                       0x0f    // System Firmware Progress
+#define SENSOR_TYPE_EVTLOGDIS                       0x10    // Event Logging Disabled
+#define SENSOR_TYPE_WD1                             0x11    // Watchdog 1
+#define SENSOR_TYPE_SYSEVT                          0x12    // System Event
+#define SENSOR_TYPE_CRII                            0x13    // Critical Interrupt
 #define SENSOR_TYPE_BUTTON_SWITCH                   0x14    // Button / Switch
+#define SENSOR_TYPE_MODUBRD                         0x15    // Module / Board
+#define SENSOR_TYPE_MICRPROC                        0x16    // Microcontroller / Coprocessor
+#define SENSOR_TYPE_ADDCARD                         0x17    // Add-in Card
+#define SENSOR_TYPE_CHASSIS                         0x18    // Chassis
+#define SENSOR_TYPE_CHIPSET                         0x19    // Chip Set
+#define SENSOR_TYPE_OFRU                            0x1a    // Other FRU
+#define SENSOR_TYPE_CABINTER                        0x1b    // Cable / Interconnect
+#define SENSOR_TYPE_TERMINATOR                      0x1c    // Terminator
+#define SENSOR_TYPE_SYSBTINIT                       0x1d    // System Boot Initiated
+#define SENSOR_TYPE_BOOTERR                         0x1e    // Boot Error
+#define SENSOR_TYPE_OSBOOT                          0x1f    // OS Boot
+#define SENSOR_TYPE_OSCRISTOP                       0x20    // OS Critical Stop
+#define SENSOR_TYPE_SLOTCNN                         0x21    // Slot / Connector
+#define SENSOR_TYPE_SYSACPIPS                       0x22    // System ACPI Power State
+#define SENSOR_TYPE_WD2                             0x23    // Watchdog 2
+#define SENSOR_TYPE_PFALERT                         0x24    // Platform Alert
+#define SENSOR_TYPE_ENTITYPRS                       0x25    // Entity Presence
+#define SENSOR_TYPE_MONAI                           0x26    // Monitor ASIC / IC
+#define SENSOR_TYPE_LAN                             0x27    // LAN
+#define SENSOR_TYPE_MANSUBHLH                       0x28    // Management Subsystem Health
+#define SENSOR_TYPE_BATTERY                         0x29    // Battery
+#define SENSOR_TYPE_SESAUDIT                        0x2a    // Session Audit
+#define SENSOR_TYPE_VERCH                           0x2b    // Version Change
+#define SENSOR_TYPE_FRUS                            0x2c    // FRU State
+#define SENSOR_TYPE_OEM_START                       0xc0    // OEM RESERVED
+#define SENSOR_TYPE_OEM_STOP                        0xff    // OEM RESERVED
+
+
+
+/* Generic Event/Reading Type Codes
+ * See IPMI specification Table 42-2, Generic Event/Reading Type Codes
+ */
+#define EVENT_TYPE_THRESHOLD                        0x01    /* Threshold
+                                                                00h Lower Non-critical - going low
+                                                                01h Lower Non-critical - going high
+                                                                02h Lower Critical - going low
+                                                                03h Lower Critical - going high
+                                                                04h Lower Non-recoverable - going low
+                                                                05h Lower Non-recoverable - going high
+                                                                06h Upper Non-critical - going low
+                                                                07h Upper Non-critical - going high
+                                                                08h Upper Critical - going low
+                                                                09h Upper Critical - going high
+                                                                0Ah Upper Non-recoverable - going low
+                                                                0Bh Upper Non-recoverable - going high */
+#define EVENT_TYPE_DISCRETE                         0x02    /* Discrete
+                                                                00h Transition to Idle
+                                                                01h Transition to Active
+                                                                02h Transition to Busy */
+#define EVENT_TYPE_DD_STATE                         0x03    /* State digital Discrete
+                                                                00h State Deasserted
+                                                                01h State Asserted */
+#define EVENT_TYPE_DD_PRED                          0x04    /* Predictive digital Discrete
+                                                                00h Predictive Failure deasserted
+                                                                01h Predictive Failure asserted */
+#define EVENT_TYPE_DD_LIMIT                         0x05    /* Limit digital Discrete
+                                                                00h Limit Not Exceeded
+                                                                01h Limit Exceeded */
+#define EVENT_TYPE_DD_PERF                          0x06    /* Performance digital Discrete
+                                                                00h Performance Met
+                                                                01h Performance Lags */
+#define EVENT_TYPE_SES                              0x07    /* SEVERITY EVENT STATES
+                                                                00h transition to OK
+                                                                01h transition to Non-Critical from OK
+                                                                02h transition to Critical from less severe
+                                                                03h transition to Non-recoverable from less severe
+                                                                04h transition to Non-Critical from more severe
+                                                                05h transition to Critical from Non-recoverable
+                                                                06h transition to Non-recoverable
+                                                                07h Monitor
+                                                                08h Informationa */
+#define EVENT_TYPE_ASS_DRI                          0x08    /* AVAILABILITY STATUS STATES
+                                                                00h Device Removed / Device Absent
+                                                                01h Device Inserted / Device Present */
+#define EVENT_TYPE_ASS_DDE                          0x09    /* AVAILABILITY STATUS STATES
+                                                                00h Device Removed / Device Absent
+                                                                01h Device Inserted / Device Present */
+#define EVENT_TYPE_ASS_TT                           0x0a    /* AVAILABILITY STATUS STATES
+                                                                00h transition to Running
+                                                                01h transition to In Test
+                                                                02h transition to Power Off
+                                                                03h transition to On Line
+                                                                04h transition to Off Line
+                                                                05h transition to Off Duty
+                                                                06h transition to Degraded
+                                                                07h transition to Power Save
+                                                                08h Install Error */
+#define EVENT_TYPE_OASS_RS                          0x0b    /* Other AVAILABILITY STATUS STATES
+                                                                Redundancy States
+                                                                00h Fully Redundant (formerly “Redundancy Regained”)
+                                                                    Indicates that full redundancy has been regained.
+                                                                01h Redundancy Lost
+                                                                    Entered any non-redundant state, including Nonredundant:
+                                                                    Insufficient Resources.
+                                                                02h Redundancy Degraded
+                                                                    Redundancy still exists, but at a less than full level. For
+                                                                    example, a system has four fans, and can tolerate the
+                                                                    failure of two of them, and presently one has failed.
+                                                                03h Non-redundant:Sufficient Resources from Redundant
+                                                                    Redundancy has been lost but unit is functioning with
+                                                                    minimum resources needed for ‘normal’ operation. Entered
+                                                                    from Redundancy Degraded or Fully Redundant.
+                                                                04h Non-redundant:Sufficient Resources from Insufficient
+                                                                    Resources
+                                                                    Unit has regained minimum resources needed for ‘normal’
+                                                                    operation. Entered from Non-redundant:Insufficient
+                                                                    Resources.
+                                                                05h Non-redundant:Insufficient Resources
+                                                                    Unit is non-redundant and has insufficient resources to
+                                                                    maintain normal operation.
+                                                                06h Redundancy Degraded from Fully Redundant
+                                                                    Unit has lost some redundant resource(s) but is still in a
+                                                                    redundant state. Entered by a transition from Fully
+                                                                    Redundant condition.
+                                                                07h Redundancy Degraded from Non-redundant
+                                                                    Unit has regained some resource(s) and is redundant but
+                                                                    not fully redundant. Entered from Non-redundant:Sufficient
+                                                                    Resources or Non-redundant:Insufficient Resources. */
+#define EVENT_TYPE_OASS_ADPS                        0x0c    /* ACPI Device Power States
+                                                                00h D0 Power State
+                                                                01h D1 Power State
+                                                                02h D2 Power State
+                                                                03h D3 Power State */
+
+#define EVENT_DIR_ASSERT	                        0
+#define EVENT_DIR_DEASSERT	                        1
 
 /* Entity ID Codes
  * See IPMI specification Table 43-13, Entity ID Codes
@@ -311,10 +467,6 @@
 #define SDR_RECORD_TYPE_BMC_MSG_CHANNEL_INFO        0x14
 #define SDR_RECORD_TYPE_OEM                         0xc0
 
-
-#define IPMI_BUF_SIZE                               0x80
-
-
 //#if HAVE_PRAGMA_PACK
 //#define ATTRIBUTE_PACKING
 //#else
@@ -333,51 +485,73 @@
 #define IPMI_PAYLOAD_TYPE_RAKP_3                    0x14
 #define IPMI_PAYLOAD_TYPE_RAKP_4                    0x15
 
+
+/* Manufacturer ID is 26067 65d3h */
+#define IPMI_DEV_MANUFACTURER_ID_0                  0x00
+#define IPMI_DEV_MANUFACTURER_ID_1                  0x65
+#define IPMI_DEV_MANUFACTURER_ID_2                  0xd3
+
+
+/* IPMI Generic Buffer Size is 0x80 (128 byte) */
+#define IPMI_BUF_SIZE                               0x80
+
 //extern int verbose;
 //extern int csv_output;
 struct _ipmi_req_cmd {
-    uint8_t data_len;               // 数据总长度
-    uint8_t rs_sa;                  // 响应从地址
+    uint8_t data_len;                   // 数据总长度
+    uint8_t rs_sa;                      // 响应从地址
 #ifdef __LITTLE_ENDIAN__
-    uint8_t rs_lun:2,               // 响应逻辑单元号
-            netfn:6;                // 网络功能码
+    uint8_t rs_lun:2,                   // 响应逻辑单元号
+            netfn:6;                    // 网络功能码
 #else
     uint8_t netfn:6,
             rs_lun:2;
 #endif
-    uint8_t checksum1;              // 校验码1
-    uint8_t rq_sa;                  // 请求从地址
+    uint8_t checksum1;                  // 校验码1
+    uint8_t rq_sa;                      // 请求从地址
 #ifdef __LITTLE_ENDIAN__
-    uint8_t rq_lun:2,               // 请求逻辑单元号
-            rq_seq:6;               // 请求序列号
+    uint8_t rq_lun:2,                   // 请求逻辑单元号
+            rq_seq:6;                   // 请求序列号
 #else
     uint8_t rq_seq:6,
             rq_lun:2;
 #endif
-    uint8_t cmd;                    // 命令号
+    uint8_t cmd;                        // 命令号
 };
 
+/* IPMI Request Message */
 struct ipmi_req {
     struct _ipmi_req_cmd msg;
     uint8_t data[IPMI_BUF_SIZE - sizeof(struct _ipmi_req_cmd)];
 };
 
 
-struct ipmi_req_entry {
-    struct ipmi_req req;
-    //struct ipmi_intf *intf;
-    uint8_t rq_seq;
-    //uint8_t *msg_data;
-    //int msg_len;
-    //int bridging_level;
-    struct ipmi_req_entry *next;
+struct _ipmi_rsp_cmd {
+    uint8_t data_len;
+    uint8_t rq_sa;
+#ifdef __LITTLE_ENDIAN__
+    uint8_t rq_lun:2,
+            netfn:6;
+#else
+    uint8_t netfn:6,
+            rq_lun:2;
+#endif
+    uint8_t checksum1;
+    uint8_t rs_sa;
+#ifdef __LITTLE_ENDIAN__
+    uint8_t rs_lun:2,
+            rq_seq:6;
+#else
+    uint8_t rq_seq:6,
+            rs_lun:2;
+#endif
+    uint8_t cmd;
+    uint8_t ccode;
 };
 
+/* IPMI Response Message */
 struct ipmi_rsp {
-    struct _ipmi_rsp_cmd {
-        uint8_t data_len;
-        uint8_t ccode;
-    } msg;
+    struct _ipmi_rsp_cmd msg;
     uint8_t data[IPMI_BUF_SIZE - sizeof(struct _ipmi_rsp_cmd)];
 
     /*
@@ -523,27 +697,45 @@ struct ipmi_v2_payload {
 };
 #endif
 
+struct ipmi_req_entry {
+    struct ipmi_req req;
+    //struct ipmi_intf *intf;
+    uint8_t rq_seq;
+    //uint8_t *msg_data;
+    //int msg_len;
+    //int bridging_level;
+    struct ipmi_req_entry *next;
+};
+
 #define IPMI_CTX_ENABLE             0x01
 #define IPMI_CTX_BRIDGE             0x02
 #define IPMI_CTX_NO_RESPONSE        0x80
 
+#define IPMI_CTX_BRIDGE_NOTRACK     0x00
+#define IPMI_CTX_BRIDGE_TRACK       0x40
+#define IPMI_CTX_BRIDGE_SENDRAW     0x80
+#define IPMI_CTX_BRIDGE_WITH_ENCRPT 0x20
+#define IPMI_CTX_BRIDGE_WITH_AUTH   0x10
+
 struct ipmi_ctx {
-    struct ipmi_req req;
-    struct ipmi_rsp rsp;
-    uint8_t channel;
-    uint8_t rq_seq;
-    uint8_t flags;
-    uint16_t req_len;
-    uint16_t rsp_len;
+    struct ipmi_req req;                // IPMI请求消息
+    struct ipmi_rsp rsp;                // IPMI响应消息
+    uint8_t from_channel;               // 请求通道
+    uint8_t to_channel;                 // 发送通道
+    uint8_t rq_seq;                     // 序列号
+    uint8_t flags;                      // 标志位
+    uint8_t bridge;                     // 桥消息标志位
+    uint16_t req_len;                   // 请求数据长度
+    uint16_t rsp_len;                   // 响应数据长度
 };
 
-extern unsigned long device_available;
 
 #include "ipmi_lib/ipmi_modules.h"
 #include "ipmi_lib/ipmi_version.h"
 #include "ipmi_lib/ipmi_intf.h"
 #include "ipmi_lib/ipmi_common.h"
 #include "ipmi_lib/ipmi_timer.h"
+#include "ipmi_lib/ipmi_message.h"
 #include "ipmi_lib/ipmi_logic.h"
 #include "ipmi_lib/ipmi_cmd.h"
 #include "ipmi_lib/ipmi_debug.h"
@@ -552,6 +744,7 @@ extern unsigned long device_available;
 #include "ipmi_lib/ipmi_se.h"
 #include "ipmi_lib/ipmi_storage.h"
 #include "ipmi_lib/ipmi_transport.h"
+#include "ipmi_lib/ipmi_pef.h"
 #include "ipmi_lib/ipmi_sel.h"
 #include "ipmi_lib/ipmi_sdr.h"
 #include "ipmi_lib/ipmi_app.h"

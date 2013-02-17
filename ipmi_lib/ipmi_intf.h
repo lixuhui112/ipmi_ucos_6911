@@ -13,13 +13,24 @@
 #define _IPMI_INTF_H_
 
 #include <inttypes.h>
+#include "ipmi_lib/ipmi.h"
+#include "app/lib_spi.h"
+#include "app/lib_i2c.h"
+#include "app/lib_uart.h"
+#include "app/lib_eth.h"
+#include "app/lib_io.h"
 
-#define IPMI_INTF_SSIF                  0x01
-#define IPMI_INTF_ICMB                  0x02
-#define IPMI_INTF_IPMB                  0x04
-#define IPMI_INTF_ETH                   0x08
-#define IPMI_INTF_DEBUG                 0x10
-
+#if (defined(BOARD_6911_SWITCH) || defined(BOARD_6911_FABRIC))
+#define IPMI_INTF_SSIF                  IPMI_CH_NUM_SYS_INTERFACE
+#define IPMI_INTF_ICMB                  IPMI_CH_NUM_ICMB
+#define IPMI_INTF_IPMB                  IPMI_CH_NUM_PRIMARY_IPMB
+#define IPMI_INTF_ETH                   IPMI_CH_NUM_LAN
+#define IPMI_INTF_DEBUG                 IPMI_CH_NUM_CONSOLE
+#endif
+#if (defined(BOARD_6911_FAN) || defined(BOARD_6911_POWER))
+#define IPMI_INTF_IPMB                  IPMI_CH_NUM_PRIMARY_IPMB
+#define IPMI_INTF_DEBUG                 IPMI_CH_NUM_SYS_INTERFACE
+#endif
 
 // IPMI帧开始标记字符
 #define IPMI_FRAME_CHAR_SIZE            3
@@ -30,13 +41,33 @@
 extern uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE];
 
 
-#include "ipmi_lib/ipmi.h"
+// IPMI接口结构体
+typedef struct ipmi_intf {
+	char *name;
+	uint32_t flags;
 
-#include "app/lib_spi.h"
-#include "app/lib_i2c.h"
-#include "app/lib_uart.h"
-#include "app/lib_eth.h"
-#include "app/lib_io.h"
+	//struct ipmi_session * session;
+	//struct ipmi_oem_handle * oem;
+	//struct ipmi_cmd * cmdlist;
+	uint32_t my_addr;
+	uint32_t target_addr;
+	uint8_t target_lun;
+	uint8_t target_channel;
+	uint32_t transit_addr;
+	uint8_t transit_channel;
+	uint8_t channel_buf_size;
+
+	//uint8_t devnum;
+
+	//int (*setup)(struct ipmi_intf * intf);
+	//int (*open)(struct ipmi_intf * intf);
+	//void (*close)(struct ipmi_intf * intf);
+	//struct ipmi_rs *(*sendrecv)(struct ipmi_intf * intf, struct ipmi_rq * req);
+	//int (*sendrsp)(struct ipmi_intf * intf, struct ipmi_rs * rsp);
+	//struct ipmi_rs *(*recv_sol)(struct ipmi_intf * intf);
+	//struct ipmi_rs *(*send_sol)(struct ipmi_intf * intf, struct ipmi_v2_payload * payload);
+	//int (*keepalive)(struct ipmi_intf * intf);
+} ipmi_intf_t;
 
 
 // SSIF接口读写函数
@@ -60,7 +91,7 @@ extern uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE];
 #define IPMI_DBGU_WRITE(buf, size)          UART_uart0_write(buf, size)
 
 // 接口读信号函数
-void ipmi_intf_recv_post(int intf);
+void ipmi_intf_recv_post(uint8_t intf);
 
 void ipmi_debug_init(void);
 int ipmi_debug_recv(struct ipmi_ctx *ctx_cmd);

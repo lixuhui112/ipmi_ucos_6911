@@ -22,7 +22,6 @@ uint16_t sdr_reservation_id = 0;
 
 sdr_record_entry_t sdr_entry_table[MAX_SDR_COUNT];
 sensor_data_t *sensor[MAX_SENSOR_COUNT];
-extern uint32_t g_sel_sdr_time;
 
 
 void ipmi_sensor_scan_period(void)
@@ -32,12 +31,35 @@ void ipmi_sensor_scan_period(void)
     for (i = 0; i < MAX_SENSOR_COUNT; i++)
     {
         if (sensor[i] != NULL && sensor[i]->scan_period) {
-            if ((sensor[i]->last_scan_timestamp + sensor[i]->scan_period) <= g_sel_sdr_time) {
+            if ((sensor[i]->last_scan_timestamp + sensor[i]->scan_period) <= ipmi_global.timestamp) {
                 sensor[i]->scan_function((void *)sensor[i]);
                 if (sensor[i]->retry == 0) {  // sensor is scanning ok
-                    sensor[i]->last_scan_timestamp = g_sel_sdr_time;
+                    sensor[i]->last_scan_timestamp = ipmi_global.timestamp;
                 }
                 break;
+            }
+        }
+    }
+}
+
+void ipmi_sensor_dead_limit(void)
+{
+    uint8_t i;
+
+    for (i = 0; i < MAX_SENSOR_COUNT; i++)
+    {
+        if (sensor[i] != NULL && sensor[i]->scan_period) {
+            if ((sensor[i]->last_scan_timestamp + IPMI_SENSOR_DEAD_LIMIT) <= ipmi_global.timestamp) {
+                sensor[i]->unavailable = 1;
+
+                DEBUG("sdr_type=0x%x\r\n", SDR_RECORD_TYPE(sensor[i]->sdr_record->record_ptr));
+
+                if (SDR_RECORD_TYPE(sensor[i]->sdr_record->record_ptr) == SDR_RECORD_TYPE_MC_DEVICE_LOCATOR) {
+                    ipmi_alive_bmc_map_clr(i);
+                    SDR_MC_LOCATOR_ALIVE(sensor[i]->sdr_record->record_ptr, 0);
+
+                    DEBUG("sensor_%d (addr=0x%x) is leave\r\n", i, SDR_MC_LOCATOR_ADDR(sensor[i]->sdr_record->record_ptr));
+                }
             }
         }
     }
@@ -74,11 +96,11 @@ int sensor_add(sensor_data_t *sensor_data, uint8_t sdr_type, void *sdr)
     sdr_entry_table[current_sdr_count].record_len = sdr_record_len(sdr_type);
     sdr_entry_table[current_sdr_count].record_ptr = sdr;
 
-    ((SDR_RECORD_HEADER_KEY*)sdr)->header.record_id = current_sdr_count;
+    SDR_RECORD_ID(sdr) = current_sdr_count;
 
     if (sdr_type == SDR_RECORD_TYPE_FULL_SENSOR ||
         sdr_type == SDR_RECORD_TYPE_COMPACT_SENSOR) {
-        ((SDR_RECORD_HEADER_KEY*)sdr)->key.sensor_number = current_sensor_count;
+        SDR_SENSOR_NUMBER(sdr) = current_sensor_count;
     }
 
     current_sensor_count++;
@@ -421,33 +443,33 @@ void ipmi_get_sensor_event_enable(struct ipmi_ctx *ctx_cmd)
 
         if (rsp->event_messages_enabled)
         {
-#define BIT_SET(bit,x,y)    ((x).bit = (y).bit)
-            BIT_SET(assert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_lower_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(assert_upper_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_lower_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_upper_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_upper_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);;
-            BIT_SET(dassert_upper_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_upper_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_upper_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
-            BIT_SET(dassert_upper_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
-#undef BIT_SET
+#define MBIT_SET(bit,x,y)    ((x).bit = (y).bit)
+            MBIT_SET(assert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_lower_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(assert_upper_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_lower_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_upper_non_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_upper_non_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);;
+            MBIT_SET(dassert_upper_critical_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_upper_critical_high, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_upper_non_recoverable_low, rsp->type.threshold, fsdr->mask.type.threshold);
+            MBIT_SET(dassert_upper_non_recoverable_high, rsp->type.threshold, fsdr->mask.type.threshold);
+#undef MBIT_SET
             ipmi_cmd_ok(ctx_cmd, sizeof(SENSOR_EVENT_ENABLE));
         } else {
             ipmi_cmd_ok(ctx_cmd, 1);
@@ -591,14 +613,99 @@ void ipmi_get_sensor_type(struct ipmi_ctx *ctx_cmd)
     }
 }
 
+void ipmi_set_event_receiver(struct ipmi_ctx *ctx_cmd)
+{
+    struct event_reciver_st *evtr = (struct event_reciver_st *)&ctx_cmd->req.data[0];
+
+    ipmi_global.event_recv_addr = evtr->event_receiver_slave_address;
+    ipmi_global.event_recv_lun = evtr->event_receiver_lun;
+
+    ipmi_cmd_ok(ctx_cmd, 0);
+}
+
+void ipmi_get_event_receiver(struct ipmi_ctx *ctx_cmd)
+{
+    struct event_reciver_st *evtr = (struct event_reciver_st *)&ctx_cmd->rsp.data[0];
+
+    evtr->event_receiver_slave_address = ipmi_global.event_recv_addr;
+    evtr->event_receiver_lun = ipmi_global.event_recv_lun;
+
+    ipmi_cmd_ok(ctx_cmd, sizeof(struct event_reciver_st));
+}
+
+void ipmi_platform_event(struct ipmi_ctx *ctx_cmd)
+{
+    struct event_request_message *evm;
+    sel_event_record newsel;
+
+    if (ctx_cmd->from_channel == IPMI_INTF_IPMB)
+    {
+        evm = (struct event_request_message *)&ctx_cmd->req.data[0];
+
+        newsel.record_type = 0x02;
+        newsel.sel_type.standard_type.id_type = 0x0;
+        newsel.sel_type.standard_type.ipmb_slave_addr = ctx_cmd->req.msg.rq_sa;
+        newsel.sel_type.standard_type.ipmb_dev_lun = ctx_cmd->req.msg.rq_lun;
+        newsel.sel_type.standard_type.channel_number = IPMI_CH_NUM_PRIMARY_IPMB;
+    }
+    else
+    {
+        evm = (struct event_request_message *)&ctx_cmd->req.data[1];
+
+        newsel.record_type = 0x02;
+        newsel.sel_type.standard_type.id_type = 0x1;
+        newsel.sel_type.standard_type.ipmb_slave_addr = ctx_cmd->req.data[0];
+        newsel.sel_type.standard_type.ipmb_dev_lun = ctx_cmd->req.msg.rq_lun;
+        newsel.sel_type.standard_type.channel_number = IPMI_CH_NUM_SYS_INTERFACE;
+    }
+
+    newsel.sel_type.standard_type.evm_rev = evm->evm_rev;
+    newsel.sel_type.standard_type.sensor_type = evm->sensor_type;
+    newsel.sel_type.standard_type.sensor_num = evm->sensor_num;
+    newsel.sel_type.standard_type.event_type = evm->event_type;
+    newsel.sel_type.standard_type.event_dir = evm->event_dir;
+    newsel.sel_type.standard_type.event_data[0] = evm->event_data[0];
+    newsel.sel_type.standard_type.event_data[1] = evm->event_data[1];
+    newsel.sel_type.standard_type.event_data[2] = evm->event_data[2];
+
+    // add sel to eeprom
+    ipmi_add_sel(&newsel, newsel.record_type);
+
+    ipmi_cmd_ok(ctx_cmd, 0);
+}
+
 int ipmi_cmd_se(struct ipmi_ctx *ctx_cmd)
 {
     DEBUG("ipmi_cmd_se\r\n");
 
     switch (ctx_cmd->req.msg.cmd)
     {
-        /* Sensor Device Commands *******************************************/
+        /* Event Commands ***************************************************/
+        case SET_EVENT_RECEIVER:                            /* 0x00 */
+            ipmi_set_event_receiver(ctx_cmd);
+            break;
 
+        case GET_EVENT_RECEIVER:                            /* 0x01 */
+            ipmi_get_event_receiver(ctx_cmd);
+            break;
+
+        case PLATFORM_EVENT:                                /* 0x02 */
+            ipmi_platform_event(ctx_cmd);
+            break;
+
+        /* PEF and Alerting Commands ****************************************/
+        case GET_PEF_CAPABILITIES:                          /* 0x10 */
+        case ARM_PEF_POSTPONE_TIMER:                        /* 0x11 */
+        case SET_PEF_CONFIG_PARAM:                          /* 0x12 */
+        case GET_PEF_CONFIG_PARAM:                          /* 0x13 */
+        case SET_LAST_PROCESSED_EVENT_ID:                   /* 0x14 */
+        case GET_LAST_PROCESSED_EVENT_ID:                   /* 0x15 */
+        case ALERT_IMMEDIATE:                               /* 0x16 */
+        case PET_ACKNOWLEDGE:                               /* 0x17 */
+            ipmi_cmd_invalid(ctx_cmd);
+            break;
+
+        /* Sensor Device Commands *******************************************/
         case GET_DEVICE_SDR_INFO:                           /* 0x20 */
             ipmi_get_device_sdr_info(ctx_cmd);
             break;

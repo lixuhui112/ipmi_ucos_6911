@@ -1845,6 +1845,9 @@
       <name>$PROJ_DIR$\ipmi_lib\ipmi_main.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\ipmi_lib\ipmi_message.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_picmg.c</name>
     </file>
     <file>

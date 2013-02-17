@@ -12,7 +12,6 @@
 #include "app/lib_common.h"
 #include <string.h>
 
-extern uint32_t g_sel_sdr_time;
 extern uint16_t g_sel_sdr_status;
 sdr_repository_header g_ipmi_sdr_header;
 uint16_t g_sdr_reservation_id = 0;
@@ -201,7 +200,7 @@ void ipmi_add_sdr(struct ipmi_ctx *ctx_cmd)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sdr_header.most_recent_addition_timestamp = B32_H2L(g_sel_sdr_time);
+    g_ipmi_sdr_header.most_recent_addition_timestamp = B32_H2L(ipmi_global.timestamp);
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SDR_HEADER_OFFSET, (uint8_t*)&g_ipmi_sdr_header, sizeof(sdr_repository_header));
@@ -257,7 +256,7 @@ void ipmi_partial_add_sdr(struct ipmi_ctx *ctx_cmd)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sdr_header.most_recent_addition_timestamp = B32_H2L(g_sel_sdr_time);
+    g_ipmi_sdr_header.most_recent_addition_timestamp = B32_H2L(ipmi_global.timestamp);
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SDR_HEADER_OFFSET, (uint8_t*)&g_ipmi_sdr_header, sizeof(sdr_repository_header));
@@ -344,7 +343,7 @@ void ipmi_delete_sdr(struct ipmi_ctx *ctx_cmd)
         if (record_id == 0xffff) {
             g_ipmi_sdr_header.last_entry_index = IPMI_SDR_INDEX_DEC(g_ipmi_sdr_header.last_entry_index);
         }
-        g_ipmi_sdr_header.most_recent_erase_timestamp = g_sel_sdr_time;
+        g_ipmi_sdr_header.most_recent_erase_timestamp = ipmi_global.timestamp;
 
         // write the sel header to eeprom
         error = at24xx_write(IPMI_SDR_HEADER_OFFSET, (uint8_t*)&g_ipmi_sdr_header, sizeof(sdr_repository_header));
@@ -428,7 +427,7 @@ void ipmi_get_sdr_repository_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sdr_time_st *rsp = (struct sdr_time_st *)(&ctx_cmd->rsp.data[0]);
 
-    rsp->timestamp = B32_H2L(g_sel_sdr_time);
+    rsp->timestamp = B32_H2L(ipmi_global.timestamp);
 
     ipmi_cmd_ok(ctx_cmd, sizeof(struct sel_time_st));
 }
@@ -437,7 +436,7 @@ void ipmi_set_sdr_repository_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sdr_time_st *req = (struct sdr_time_st *)(&ctx_cmd->req.data[0]);
 
-    g_sel_sdr_time = B32_L2H(req->timestamp);
+    ipmi_global.timestamp = B32_L2H(req->timestamp);
 
     ipmi_cmd_ok(ctx_cmd, 0);
 }

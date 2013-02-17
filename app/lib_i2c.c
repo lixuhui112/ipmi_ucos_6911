@@ -17,6 +17,7 @@
 #include "driverlib/debug.h"
 #include "driverlib/interrupt.h"
 #include "ipmi_lib/ipmi_modules.h"
+#include "ipmi_lib/ipmi_common.h"
 #include "ipmi_lib/ipmi_intf.h"
 #include "app/lib_common.h"
 #include "app/lib_gpio.h"
@@ -45,7 +46,7 @@ uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long
     unsigned char data_addr_i2c[4];
     int addr_i2c_len = 0;
     int data_i2c_index = 0;
-    int error;
+    int error, i;
 
     //
     // Check the arguments.
@@ -98,7 +99,21 @@ uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long
     I2CMasterDataPut(dev, data_addr_i2c[data_i2c_index]);
 
     // 防止多主机同时操作，等待总线空闲
-    //while (I2CMasterBusBusy(dev->bus->i2c_hw_master_base));
+    //while (I2CMasterBusBusy(dev));
+    for (i = 0; i < 0x1000; i++)
+    {
+        if (I2CMasterBusBusy(dev) == false)
+        {
+            break;
+        }
+    }
+
+    if (i == 0xffff)
+    {
+        // 关闭主模式
+        I2CMasterDisable(dev);
+        return I2C_MASTER_ERR_ARB_LOST;
+    }
 
     // 主机突发发送起始
     I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_START);
@@ -112,10 +127,15 @@ uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long
         // 检测可能的错误
         if ((error = I2CMasterErr(dev)) != I2C_MASTER_ERR_NONE)
         {
-            if (error & I2C_MASTER_ERR_ARB_LOST)
+            if (error & ~I2C_MASTER_ERR_ARB_LOST)
             {
-                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                //I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_FINISH);
             }
+
+            // 关闭主模式
+            I2CMasterDisable(dev);
+
             return error;
         }
 
@@ -143,10 +163,15 @@ uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long
         // 检测可能的错误
         if ((error = I2CMasterErr(dev)) != I2C_MASTER_ERR_NONE)
         {
-            if (error & I2C_MASTER_ERR_ARB_LOST)
+            if (error & ~I2C_MASTER_ERR_ARB_LOST)
             {
-                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                //I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_FINISH);
             }
+
+            // 关闭主模式
+            I2CMasterDisable(dev);
+
             return error;
         }
 
@@ -162,10 +187,14 @@ uint32_t I2C_dev_read(unsigned long dev, unsigned char slave_addr, unsigned long
     // 检测可能的错误
     if ((error = I2CMasterErr(dev)) != I2C_MASTER_ERR_NONE)
     {
-        if (error & I2C_MASTER_ERR_ARB_LOST)
+        if (error & ~I2C_MASTER_ERR_ARB_LOST)
         {
-            I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+            //I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+            I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_FINISH);
         }
+
+        // 关闭主模式
+        I2CMasterDisable(dev);
         return error;
     }
 
@@ -182,7 +211,7 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
         unsigned char addr_size, unsigned long data_size, char *buf)
 {
     unsigned char data_addr_i2c[4];
-    unsigned long error;
+    unsigned long error, i;
     int addr_i2c_len = 0;
     int data_i2c_index = 0;
 
@@ -247,6 +276,20 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
 
     // 防止多主机同时操作，等待总线空闲
     //while (I2CMasterBusBusy(dev));
+    for (i = 0; i < 0x100; i++)
+    {
+        if (I2CMasterBusBusy(dev) == false)
+        {
+            break;
+        }
+    }
+
+    if (i == 0x100)
+    {
+        // 关闭主模式
+        I2CMasterDisable(dev);
+        return I2C_MASTER_ERR_ARB_LOST;
+    }
 
     // 主机突发发送起始
     I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_START);
@@ -260,11 +303,14 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
         // 检测可能的错误
         if ((error = I2CMasterErr(dev)) != I2C_MASTER_ERR_NONE)
         {
-            if (error & I2C_MASTER_ERR_ARB_LOST)
+            if (error & ~I2C_MASTER_ERR_ARB_LOST)
             {
-                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                //I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_FINISH);
+                while (I2CMasterBusy(dev));
             }
 
+            // 关闭主模式
             I2CMasterDisable(dev);
 
             return error;
@@ -284,6 +330,7 @@ uint32_t I2C_dev_write(unsigned long dev, unsigned char slave_addr, unsigned lon
         I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_CONT);
     }
 
+    // 发送完成
     I2CMasterControl(dev, I2C_MASTER_CMD_BURST_SEND_FINISH);
 
     // 等待芯片空闲
@@ -325,16 +372,17 @@ void I2C_i2c0_int_handler(void)
 
     // 获取I2C0主机中断状态
     status = I2CMasterIntStatus(I2C0_MASTER_BASE, true);
+    I2CMasterIntClear(I2C0_MASTER_BASE);
+
     if (status)
     {
-        I2CMasterIntClear(I2C0_MASTER_BASE);
-
         // 若遇到错误
         if ((i2c0.error = I2CMasterErr(I2C0_MASTER_BASE)) != I2C_MASTER_ERR_NONE)
         {
-            if (i2c0.error & I2C_MASTER_ERR_ARB_LOST)
+            if (i2c0.error & ~I2C_MASTER_ERR_ARB_LOST)
             {
-                I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                //I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
             }
 
             i2c0.status = I2C_STAT_IDLE;
@@ -456,6 +504,8 @@ void I2C_i2c0_int_handler(void)
 
     // 获取I2C0从机中断状态
     status = I2CSlaveIntStatus(I2C0_SLAVE_BASE, true);
+    I2CSlaveIntClear(I2C0_SLAVE_BASE);
+
     if (status)
     {
         unsigned long act;
@@ -463,10 +513,8 @@ void I2C_i2c0_int_handler(void)
         static unsigned char i2c0_frame = 0;
         static unsigned char i2c0_size = 0;
 
-        I2CSlaveIntClear(I2C0_SLAVE_BASE);
-
         // if recvie frame time out, reset the frame
-        if (OSTimeGet() - i2c0_rx_timestamp > SYSTICKHZ * 2)
+        if (OSTimeGet() - i2c0_rx_timestamp > SYSTICKHZ * 5)
         {
             i2c0_frame = 0;
         }
@@ -485,7 +533,7 @@ void I2C_i2c0_int_handler(void)
             case I2C_SLAVE_ACT_RREQ_FBR:
                 data = (unsigned char)I2CSlaveDataGet(I2C0_SLAVE_BASE);
 
-                DEBUG("\r\naddr=0x%x\r\n", data);
+                //DEBUG("\r\naddr=0x%x\r\n", data);
 
                 // 读取的数据为寄存器地址，默认为0
                 i2c0_frame = 0;
@@ -496,7 +544,7 @@ void I2C_i2c0_int_handler(void)
             case I2C_SLAVE_ACT_RREQ:
                 data = (unsigned char)I2CSlaveDataGet(I2C0_SLAVE_BASE);
 
-                DEBUG(">data=0x%x\r\n", data);
+                //DEBUG(">data=0x%x\r\n", data);
 
                 // 检测前导码
                 if (i2c0_frame < IPMI_FRAME_CHAR_SIZE)
@@ -541,7 +589,7 @@ void I2C_i2c0_int_handler(void)
 
             case I2C_SLAVE_ACT_TREQ:                            // 主机请求从机发送数据
                 I2CSlaveDataPut(I2C0_SLAVE_BASE, 0x5a);
-                DEBUG("<get=0x%x\r\n", 0x5a);
+                //DEBUG("<get=0x%x\r\n", 0x5a);
 #if 0
                 /*
                  * IPMB为主写模式操作，不需要从设备写数据到主机
@@ -576,12 +624,20 @@ void I2C_i2c0_int_handler(void)
 //*****************************************************************************
 uint32_t I2C_i2c0_ipmb_read(char *buf, unsigned long *size)
 {
+    uint8_t error;
+
+    // 信号量保护，防止函数重入
+    OSSemPend(i2c0.sem, 0, &error);
+
     for (i2c0_rx_idx = 0; i2c0_rx_idx < i2c0_rx_len; i2c0_rx_idx++)
     {
         buf[i2c0_rx_idx] = i2c0_rx_buf[i2c0_rx_idx];
     }
 
     *size = i2c0_rx_len;
+
+    // 释放信号量
+    OSSemPost(i2c0.sem);
 
     return 0;
 }
@@ -593,6 +649,9 @@ uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long 
 {
     unsigned char j;
     uint8_t error;
+
+    // 信号量保护，防止函数重入
+    OSSemPend(i2c0.sem, 0, &error);
 
     // 先写前导码
     for (i2c0_tx_idx = 0; i2c0_tx_idx < sizeof(IPMI_FRAME_CHAR); i2c0_tx_idx++)
@@ -609,18 +668,15 @@ uint32_t I2C_i2c0_ipmb_write(unsigned char slave_addr, char *buf, unsigned long 
     i2c0_tx_len = i2c0_tx_idx;
     i2c0_tx_idx = 0;
 
-#if 1
-    // 信号量保护，防止函数重入
-    OSSemPend(i2c0.sem, 0, &error);
-    error = I2C_dev_write(I2C0_MASTER_BASE, slave_addr, 0, 1, i2c0_tx_len, (char*)&i2c0_tx_buf[0]);
-    OSSemPost(i2c0.sem);
-    return error;
-#else
+    // 写入IPMB总线
     I2C_i2c0_slave_dev_init(&i2c0_peer_dev, slave_addr, 1);
     I2C_i2c0_slave_dev_set(&i2c0_peer_dev, 0, (uint8_t*)&i2c0_tx_buf[0], i2c0_tx_len);
     error = I2C_i2c0_master_write(&i2c0_peer_dev);
+
+    // 释放信号量
+    OSSemPost(i2c0.sem);
+
     return error;
-#endif
 }
 
 //*****************************************************************************
@@ -655,6 +711,9 @@ void I2C_i2c0_ipmb_self_addr_set(unsigned char self_addr)
     // Enables the I2C Slave interrupt.
     I2CSlaveIntEnable(I2C0_SLAVE_BASE);
 
+    // Enables the I2C0 interrupt.
+    IntEnable(INT_I2C0);
+
     // Enables the I2C Slave block.
     I2CSlaveEnable(I2C0_SLAVE_BASE);
 
@@ -681,14 +740,14 @@ void I2C_i2c0_hardware_init(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 
     // Configure the pin muxing for I2C0 functions on port B2 and B3.
-    //GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    //GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+    GPIOPinConfigure(GPIO_PB2_I2C0SCL);
+    GPIOPinConfigure(GPIO_PB3_I2C0SDA);
 
     // Select the I2C function for these pins.
     GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
     // Enables the I2C0 interrupt.
-    IntEnable(INT_I2C0);
+    //IntEnable(INT_I2C0);
 }
 
 void I2C_i2c0_hardware_reset(void)
@@ -728,10 +787,10 @@ void I2C_i2c0_mode_slaver(void)
     I2CMasterIntDisable(I2C0_MASTER_BASE);
     I2CMasterDisable(I2C0_MASTER_BASE);
 
-    I2C_i2c0_hardware_reset();
-    I2C_i2c0_hardware_init();
+    //I2C_i2c0_hardware_reset();
+    //I2C_i2c0_hardware_init();
 
-    I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + 1);
+    I2C_i2c0_ipmb_self_addr_set(ipmi_global.ipmb_addr);
 }
 
 //*****************************************************************************
@@ -739,15 +798,12 @@ void I2C_i2c0_mode_slaver(void)
 //*****************************************************************************
 uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
 {
-    INT8U err;
+    uint32_t i;
 
     if ((dev->addr_size <= 0) || (dev->data_size <= 0))
     {
         return(I2C_MASTER_ERR_ADDR_ACK);
     }
-
-    // 信号量保护，防止函数重入
-    OSSemPend(i2c0.sem, 0, &err);
 
     i2c0.dev = dev;
     i2c0.flags = flags;
@@ -782,9 +838,6 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
             break;
     }
 
-    // 如果是多主机通信，则需要首先等待总线空闲
-    // while (I2CMasterBusBusy(I2CM_BASE));
-
     // 设置为主模式
     I2C_i2c0_mode_master();
 
@@ -793,6 +846,24 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
 
     // 开始发送数据地址
     I2CMasterDataPut(I2C0_MASTER_BASE, i2c0.reg_addr[i2c0.addr_index++]);
+
+    // 如果是多主机通信，则需要首先等待总线空闲
+    //while (I2CMasterBusBusy(I2C0_MASTER_BASE));
+    for (i = 0; i < 0x100; i++)
+    {
+        if (I2CMasterBusBusy(I2C0_MASTER_BASE) == false)
+        {
+            break;
+        }
+    }
+
+    // 总线空闲等待失败
+    if (i == 0x100)
+    {
+        // 关闭主模式
+        I2CMasterDisable(I2C0_MASTER_BASE);
+        return I2C_MASTER_ERR_ARB_LOST;
+    }
 
     // 设置状态：发送数据地址
     i2c0.status = I2C_STAT_ADDR;
@@ -809,9 +880,6 @@ uint32_t I2C_i2c0_read_write(I2C_DEVICE *dev, tBoolean flags)
     // 设置为从模式
     I2C_i2c0_mode_slaver();
 
-    // 释放信号量
-    OSSemPost(i2c0.sem);
-
     // 返回可能的错误状态
     return(i2c0.error);
 }
@@ -825,13 +893,10 @@ void I2C_i2c0_ipmb_init(void)
     i2c0.flags = 0;
     i2c0.status = I2C_STAT_IDLE;
 
-    I2C_i2c0_slave_dev_init(&i2c0_peer_dev, IPMB_SLAVE_ADDR_BASE, 1);
-
-    I2C_i2c0_hardware_init();
-
     // Default is use Slaver mode on I2C0.
-    //I2C_i2c0_mode_slaver();
-    I2C_i2c0_ipmb_self_addr_set(IPMB_SLAVE_ADDR_BASE + 1);
+    I2C_i2c0_slave_dev_init(&i2c0_peer_dev, IPMB_SLAVE_ADDR_BASE, 1);
+    I2C_i2c0_hardware_init();
+    I2C_i2c0_mode_slaver();
 }
 #endif
 
@@ -844,16 +909,6 @@ void I2C_i2c0_ipmb_init(void)
 //*****************************************************************************
 
 static I2C_DRIVER i2c1;
-
-#define I2C1_BUF_SIZE  0x80                        // IPMB帧最大长度
-//static unsigned char i2c1_rx_buf[I2C1_BUF_SIZE];
-//static unsigned char i2c1_tx_buf[I2C1_BUF_SIZE];
-//static unsigned char i2c1_rx_idx;
-//static unsigned char i2c1_tx_idx;
-//static unsigned char i2c1_rx_len;
-//static unsigned char i2c1_tx_len;
-//static unsigned char i2c1_ipmb_addr = IPMB_SLAVE_ADDR_DEF;
-//static unsigned long i2c1_rx_timestamp;
 
 //*****************************************************************************
 // The interrupt handler for the I2C1 interrupt.
@@ -868,13 +923,19 @@ void I2C_i2c1_int_handler(void)
 
     // 获取I2C1主机中断状态
     status = I2CMasterIntStatus(I2C1_MASTER_BASE, true);
+    I2CMasterIntClear(I2C1_MASTER_BASE);
+
     if (status)
     {
-        I2CMasterIntClear(I2C1_MASTER_BASE);
-
         // 若遇到错误
-        if (I2CMasterErr(I2C1_MASTER_BASE) != I2C_MASTER_ERR_NONE)
+        if ((i2c1.error = I2CMasterErr(I2C1_MASTER_BASE)) != I2C_MASTER_ERR_NONE)
         {
+            if (i2c1.error & ~I2C_MASTER_ERR_ARB_LOST)
+            {
+                //I2CMasterControl(I2C1_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
+                I2CMasterControl(I2C1_MASTER_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
+            }
+
             i2c1.status = I2C_STAT_IDLE;
             return;
         }
@@ -1071,7 +1132,7 @@ uint32_t I2C_i2c1_read_write(I2C_DEVICE *dev, tBoolean flags)
     OSSemPost(i2c1.sem);
 
     // 返回可能的错误状态
-    return(I2CMasterErr(I2C1_MASTER_BASE));
+    return(i2c1.error);
 }
 
 //*****************************************************************************

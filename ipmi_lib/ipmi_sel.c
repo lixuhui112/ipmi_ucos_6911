@@ -27,7 +27,6 @@
 *
 ******************************************************************************/
 
-extern uint32_t g_sel_sdr_time;
 extern uint16_t g_sel_sdr_status;
 sel_event_header g_ipmi_sel_header;
 uint16_t g_sel_reservation_id = 0;
@@ -199,7 +198,7 @@ void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     // auto set the sel record timestamp
     if ((new_sel.record_type == 0x02) || (new_sel.record_type >= 0xc0 && new_sel.record_type <= 0xdf)) {
-        new_sel.sel_type.standard_type.timestamp = B32_H2L(g_sel_sdr_time);
+        new_sel.sel_type.standard_type.timestamp = B32_H2L(ipmi_global.timestamp);
     }
 
     // write the sel record to eeprom
@@ -223,7 +222,7 @@ void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sel_header.most_recent_addition_timestamp = B32_H2L(g_sel_sdr_time);
+    g_ipmi_sel_header.most_recent_addition_timestamp = B32_H2L(ipmi_global.timestamp);
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -238,20 +237,24 @@ void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd)
     ipmi_cmd_ok(ctx_cmd, 2);
 }
 
-uint16_t ipmi_add_sel(struct standard_spec_sel_rec *standard_sel)
+uint16_t ipmi_add_sel(sel_event_record *new_sel, uint8_t sel_type)
 {
-    sel_event_record new_sel;
     uint16_t record_offset;
     uint32_t error;
 
-    memcpy(&new_sel.sel_type.standard_type, standard_sel, sizeof(struct standard_spec_sel_rec));
-    new_sel.record_id = ++g_ipmi_sel_header.count_of_entries;
-    new_sel.record_type = 0x02;
-    new_sel.sel_type.standard_type.timestamp = g_sel_sdr_time;
+    new_sel->record_type = sel_type;
+
+    // auto set the sel record id
+    new_sel->record_id = ++g_ipmi_sel_header.count_of_entries;
+
+    // auto set the sel record timestamp
+    if ((new_sel->record_type == 0x02) || (new_sel->record_type >= 0xc0 && new_sel->record_type <= 0xdf)) {
+        new_sel->sel_type.standard_type.timestamp = B32_H2L(ipmi_global.timestamp);
+    }
 
     // write the sel record to eeprom
     record_offset = IPMI_SEL_STORAGE_OFFSET + (g_ipmi_sel_header.last_entry_index * IPMI_MAX_SEL_BYTES);
-    error = at24xx_write(record_offset, (uint8_t*)&new_sel, sizeof(sel_event_record));
+    error = at24xx_write(record_offset, (uint8_t*)new_sel, sizeof(sel_event_record));
     if (error) {
         return 0;
     }
@@ -269,7 +272,7 @@ uint16_t ipmi_add_sel(struct standard_spec_sel_rec *standard_sel)
 
     // change the addition timestamp
     // TODO: change OSTimeGet to RTC time
-    g_ipmi_sel_header.most_recent_addition_timestamp = g_sel_sdr_time;
+    g_ipmi_sel_header.most_recent_addition_timestamp = ipmi_global.timestamp;
 
     // write the sel header to eeprom
     error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -278,7 +281,7 @@ uint16_t ipmi_add_sel(struct standard_spec_sel_rec *standard_sel)
     }
 
     // return added record sel id
-    return new_sel.record_id;
+    return new_sel->record_id;
 }
 
 void ipmi_del_sel_entry(struct ipmi_ctx *ctx_cmd)
@@ -353,7 +356,7 @@ void ipmi_del_sel_entry(struct ipmi_ctx *ctx_cmd)
         if (record_id == 0xffff) {
             g_ipmi_sel_header.last_entry_index = IPMI_SEL_INDEX_DEC(g_ipmi_sel_header.last_entry_index);
         }
-        g_ipmi_sel_header.most_recent_erase_timestamp = g_sel_sdr_time;
+        g_ipmi_sel_header.most_recent_erase_timestamp = ipmi_global.timestamp;
 
         // write the sel header to eeprom
         error = at24xx_write(IPMI_SEL_HEADER_OFFSET, (uint8_t*)&g_ipmi_sel_header, sizeof(sel_event_header));
@@ -373,7 +376,9 @@ void ipmi_get_sel_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sel_time_st *rsp = (struct sel_time_st *)(&ctx_cmd->rsp.data[0]);
 
-    rsp->timestamp = B32_H2L(g_sel_sdr_time);
+    rsp->timestamp = B32_H2L(ipmi_global.timestamp);
+
+    BIT_SET(ipmi_global.flags, BMC_SYNC_TIME_MASK, BMC_SYNC_TIME_SEC);
 
     ipmi_cmd_ok(ctx_cmd, sizeof(struct sel_time_st));
 }
@@ -382,7 +387,7 @@ void ipmi_set_sel_time(struct ipmi_ctx *ctx_cmd)
 {
     struct sel_time_st *req = (struct sel_time_st *)(&ctx_cmd->req.data[0]);
 
-    g_sel_sdr_time = B32_L2H(req->timestamp);
+    ipmi_global.timestamp = B32_L2H(req->timestamp);
 
     ipmi_cmd_ok(ctx_cmd, 0);
 }

@@ -9,14 +9,6 @@
 #include "driverlib/systick.h"
 #include "app/lib_common.h"
 
-//*****************************************************************************
-//
-// Global variable for device
-//
-//*****************************************************************************
-uint8_t g_slot_addr;
-uint8_t g_board_type;
-uint8_t g_present_ok;
 
 //*****************************************************************************
 //
@@ -58,21 +50,5 @@ void init_fail(void)
     while (1)
     {
     }
-}
-
-uint8_t board_type(void)
-{
-    if (g_slot_addr == 0x01 || g_slot_addr == 0x02) {
-        return BOARD_TYPE_POWER;
-    } else if (g_slot_addr == 0x03 || g_slot_addr == 0x04 || g_slot_addr == 0x08 || g_slot_addr == 0x09) {
-        return BOARD_TYPE_SWITCH;
-    } else if (g_slot_addr == 0x05 || g_slot_addr == 0x07) {
-        return BOARD_TYPE_FABRIC;
-    } else if (g_slot_addr == 0x06) {
-        return BOARD_TYPE_SWITCH10G;
-    } else if (g_slot_addr == 0x1d || g_slot_addr == 0x1e) {
-        return BOARD_TYPE_FAN;
-    }
-    return BOARD_TYPE_NONE;
 }
 

@@ -43,8 +43,9 @@ typedef struct sel_event_header_st {
 struct standard_spec_sel_rec {
     uint32_t timestamp;                             /* Time when event was logged. LS byte first. */
 #ifdef __LITTLE_ENDIAN__
-    uint8_t id_type:1,                              /* RqSA & LUN if event was generated from IPMB.
-                                                       Software ID if event was generated from system software. */
+    uint8_t id_type:1,                              /* [7:1] - 7-bit I2C. Slave Address, or 7-bit system software ID
+                                                       [0] 0b = ID is IPMB Slave Address
+                                                           1b = system software ID */
             ipmb_slave_addr:7;
 #else
     uint8_t ipmb_slave_addr:7,
@@ -206,6 +207,7 @@ void ipmi_get_sel_allocation_info(struct ipmi_ctx *ctx_cmd);
 void ipmi_reserve_sel(struct ipmi_ctx *ctx_cmd);
 void ipmi_get_sel_entry(struct ipmi_ctx *ctx_cmd);
 void ipmi_add_sel_entry(struct ipmi_ctx *ctx_cmd);
+uint16_t ipmi_add_sel(sel_event_record *new_sel, uint8_t sel_type);
 void ipmi_partial_add_sel_entry(struct ipmi_ctx *ctx_cmd);
 void ipmi_del_sel_entry(struct ipmi_ctx *ctx_cmd);
 void ipmi_clear_sel_entry(struct ipmi_ctx *ctx_cmd);

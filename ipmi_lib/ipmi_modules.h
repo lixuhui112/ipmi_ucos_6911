@@ -115,14 +115,25 @@
 #define IPMI_MODULES_SOL
 #endif
 
-#define IPMI_DEV_CHASSIS        1
-#define IPMI_DEV_BRIDGE         0
-#define IPMI_DEV_IPMB_EG        0
-#define IPMI_DEV_IPMB_ER        0
-#define IPMI_DEV_FRU            0
-#define IPMI_DEV_SEL            1
-#define IPMI_DEV_SDR            0
-#define IPMI_DEV_SENSOR         1
+
+#define IPMI_DEV_SOL            (1 << 8)
+#define IPMI_DEV_CHASSIS        (1 << 7)
+#define IPMI_DEV_BRIDGE         (1 << 6)
+#define IPMI_DEV_IPMB_EG        (1 << 5)
+#define IPMI_DEV_IPMB_ER        (1 << 4)
+#define IPMI_DEV_FRU            (1 << 3)
+#define IPMI_DEV_SEL            (1 << 2)
+#define IPMI_DEV_SDR            (1 << 1)
+#define IPMI_DEV_SENSOR         (1 << 0)
+
+#define IPMI_DEV_DEVICE_ADT       \
+        (IPMI_DEV_CHASSIS       | \
+         IPMI_DEV_SEL           | \
+         IPMI_DEV_SENSOR)
+
+#define IPMI_DEVICE_NORMAL_OPERATION    0
+#define IPMI_DEVICE_FIRMWARE            1
+
 
 #endif  // _IPMI_MODULES_H_
 

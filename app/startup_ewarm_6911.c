@@ -47,13 +47,27 @@ static void IntDefaultHandler(void);
 //*****************************************************************************
 extern void SysTickIntHandler(void);
 extern void OSPendSV(void);
+#if (defined(IPMI_MODULES_I2C0_IPMB))
 extern void I2C_i2c0_int_handler(void);         /* To IPMI-IPMB as Master and Slaver */
+#endif
+#if (defined(IPMI_MODULES_I2C1_HARD_PMB))
 extern void I2C_i2c1_int_handler(void);         /* To Sensors as Master */
+#endif
+#if (defined(IPMI_MODULES_UART0_DEBUG))
 extern void UART_uart0_int_handler(void);       /* To Debug */
+#endif
+#if (defined(IPMI_MODULES_UART1_ICMB))
 extern void UART_uart1_int_handler(void);       /* To IPMI-ICMB */
+#endif
+#if (defined(IPMI_MODULES_UART2_SOL))
 extern void UART_uart2_int_handler(void);       /* To IPMI-SOL */
+#endif
+#if (defined(IPMI_MODULES_SPI1_SSIF))
 extern void SPI_spi1_int_handler(void);         /* To CPU as Slaver */
+#endif
+#if (defined(IPMI_MODULES_ETH_LAN))
 extern void ETH_eth0_int_handler(void);         /* To IPMI-LAN */
+#endif
 extern void IO_gpio_a_int_handler(void);        /* To Interrupt */
 extern void IO_gpio_b_int_handler(void);        /* To Interrupt */
 extern void IO_gpio_c_int_handler(void);        /* To Interrupt */
@@ -116,10 +130,22 @@ __root const uVectorEntry __vector_table[] @ ".intvec" =
     IO_gpio_c_int_handler,                  // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
+#if (defined(IPMI_MODULES_UART0_DEBUG))
     UART_uart0_int_handler,                 // UART0 Rx and Tx
+#else
+    IntDefaultHandler,
+#endif
+#if (defined(IPMI_MODULES_UART1_ICMB))
     UART_uart1_int_handler,                 // UART1 Rx and Tx
+#else
+    IntDefaultHandler,
+#endif
     IntDefaultHandler,                      // SSI0 Rx and Tx
+#if (defined(IPMI_MODULES_I2C0_IPMB))
     I2C_i2c0_int_handler,                   // I2C0 Master and Slave
+#else
+    IntDefaultHandler,
+#endif
     IntDefaultHandler,                      // PWM Fault
     IntDefaultHandler,                      // PWM Generator 0
     IntDefaultHandler,                      // PWM Generator 1
@@ -144,16 +170,32 @@ __root const uVectorEntry __vector_table[] @ ".intvec" =
     IntDefaultHandler,                      // GPIO Port F
     IntDefaultHandler,                      // GPIO Port G
     IntDefaultHandler,                      // GPIO Port H
+#if (defined(IPMI_MODULES_UART2_SOL))
     UART_uart2_int_handler,                 // UART2 Rx and Tx
+#else
+    IntDefaultHandler,
+#endif
+#if (defined(IPMI_MODULES_SPI1_SSIF))
     SPI_spi1_int_handler,                   // SSI1 Rx and Tx
+#else
+    IntDefaultHandler,
+#endif
     IntDefaultHandler,                      // Timer 3 subtimer A
     IntDefaultHandler,                      // Timer 3 subtimer B
+#if (defined(IPMI_MODULES_I2C1_HARD_PMB))
     I2C_i2c1_int_handler,                   // I2C1 Master and Slave
+#else
+    IntDefaultHandler,
+#endif
     IntDefaultHandler,                      // Quadrature Encoder 1
     IntDefaultHandler,                      // CAN0
     IntDefaultHandler,                      // CAN1
     IntDefaultHandler,                      // CAN2
+#if (defined(IPMI_MODULES_ETH_LAN))
     ETH_eth0_int_handler,                   // Ethernet
+#else
+    IntDefaultHandler,
+#endif
     IntDefaultHandler                       // Hibernate
 };
 

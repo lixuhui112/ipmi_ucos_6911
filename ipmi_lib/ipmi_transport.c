@@ -11,14 +11,13 @@
 #include "ipmi_lib/ipmi.h"
 #include "app/lib_common.h"
 
-extern void mc_location_alive(uint8_t addr);
+extern void mc_location_alive(uint8_t rq_sa, struct mc_locator_notify_req *req);
 
 void ipmi_mc_locator_notify(struct ipmi_ctx *ctx_cmd)
 {
-    //struct mc_locator_notify_req *req = (struct mc_locator_notify_req*)&ctx_cmd->req.data[0];
+    struct mc_locator_notify_req *req = (struct mc_locator_notify_req*)&ctx_cmd->req.data[0];
 
-    DEBUG("ipmi_mc_locator_notiry\r\n");
-    mc_location_alive(ctx_cmd->req.msg.rq_sa);
+    mc_location_alive(ctx_cmd->req.msg.rq_sa, req);
 
     ipmi_cmd_set_flags(ctx_cmd, IPMI_CTX_NO_RESPONSE);
 }

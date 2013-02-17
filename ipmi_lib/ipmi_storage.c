@@ -29,7 +29,6 @@
 *
 ******************************************************************************/
 
-uint32_t g_sel_sdr_time = 0;
 uint16_t g_sel_sdr_status = 0;
 
 void ipmi_storage_status_set(uint16_t status)

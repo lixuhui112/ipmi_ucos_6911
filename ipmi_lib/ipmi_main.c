@@ -9,18 +9,14 @@
 //*****************************************************************************
 
 #include <inttypes.h>
-#include <inc/hw_types.h>
 #include <string.h>
 #include "app/lib_common.h"
 #include "app/lib_i2c.h"
 #include "ipmi_lib/ipmi.h"
 #include "ucos_ii.h"
-#include "third_party/ustdlib.h"
 
 //*****************************************************************************
-//
 // Defines stack for the task
-//
 //*****************************************************************************
 #define STK_SIZE    128
 static OS_STK ipmi_task_stk[STK_SIZE];
@@ -28,140 +24,25 @@ static OS_STK recv_task_stk[STK_SIZE];
 static OS_STK proc_task_stk[STK_SIZE];
 static OS_STK send_task_stk[STK_SIZE];
 static OS_STK test_task_stk[STK_SIZE];
-
-//*****************************************************************************
-//
-// Defines semaphore for the task
-//
-//*****************************************************************************
-static OS_EVENT *ipmi_recv_sem;
-//static OS_EVENT *ipmi_send_sem;
+static OS_STK mesg_task_stk[STK_SIZE];
 
 
 //*****************************************************************************
-//
-// Defines semaphore for the task
-//
-//*****************************************************************************
-#define IPMI_CMD_QUE_SIZE       4
-static OS_EVENT *ipmi_req_que;
-static OS_EVENT *ipmi_rsp_que;
-void *ipmi_req_que_pool[IPMI_CMD_QUE_SIZE];
-void *ipmi_rsp_que_pool[IPMI_CMD_QUE_SIZE];
-
-
-//*****************************************************************************
-//
-// Defines context of IPMI Message
-//
-//*****************************************************************************
-#define IPMI_CTX_POOL_SIZE      4
-struct ipmi_ctx ipmi_ctx_pool[IPMI_CTX_POOL_SIZE];
-
-/* TODO:
- * 注意临界区问题
- */
-struct ipmi_ctx *ipmi_get_free_ctx_entry(void)
-{
-    int i;
-
-    for (i = 0; i < IPMI_CTX_POOL_SIZE; i++)
-    {
-        if ((ipmi_ctx_pool[i].flags & IPMI_CTX_ENABLE) == 0)
-            break;
-    }
-
-    if (i == IPMI_CTX_POOL_SIZE)
-    {
-        return NULL;    // the entry is full
-    }
-
-    ipmi_ctx_pool[i].flags |= IPMI_CTX_ENABLE;
-    return &ipmi_ctx_pool[i];
-}
-
-void ipmi_put_free_ctx_entry(struct ipmi_ctx *ctx)
-{
-    memset(ctx, 0, sizeof(struct ipmi_ctx));
-}
-
-//*****************************************************************************
-//
-// Defines Front Character Frame of IPMI Message
-//
-//*****************************************************************************
-uint8_t IPMI_FRAME_CHAR[IPMI_FRAME_CHAR_SIZE] = {0x0f, 0xf0, 0x5a};
-
-//*****************************************************************************
-//
-// Defines sequence of IPMI Message
-//
-//*****************************************************************************
-uint8_t seq_array[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-//*****************************************************************************
-//
-// sequence number generator
-//
-//*****************************************************************************
-uint8_t ipmi_get_next_seq(uint8_t *seq)
-{
-	uint8_t i;
-
-	/* return the first free sequence number */
-	for (i = 0; i < 16; i++)
-	{
-		if (!seq_array[i])
-		{
-			seq_array[i] = 1;
-			*seq = i;
-			return (1);
-		}
-	}
-	return (0);
-}
-
-void ipmi_seq_free(uint8_t seq)
-{
-	seq_array[seq] = 0;
-}
-
-
-//*****************************************************************************
-//
-// Defines IPMI Device available
-//
-//*****************************************************************************
-unsigned long device_available = IPMI_DEVICE_NORMAL_OPERATION;
-
-
-//*****************************************************************************
-//
-// Defines receive flag of interrupt
-//
-//*****************************************************************************
-unsigned long ipmi_recv_intf;
-
-
-//*****************************************************************************
-//
 // Defines receive semaphore process for interrupt
-//
 //*****************************************************************************
-void ipmi_intf_recv_post(int intf)
+void ipmi_intf_recv_post(uint8_t intf)
 {
-    ipmi_recv_intf = intf;
-    OSSemPost(ipmi_recv_sem);
+    OSQPost(ipmi_global.ipmi_req_que, (void*)intf);
 }
 
+
 //*****************************************************************************
-//
 // Defines IPMI Command Receive Task
-//
 //*****************************************************************************
 void ipmi_cmd_recv_task(void *args)
 {
-    INT8U err;
+    uint8_t err;
+    uint32_t recv_intf;
     struct ipmi_ctx *ctx_cmd;
 
     while (1)
@@ -173,15 +54,17 @@ void ipmi_cmd_recv_task(void *args)
             continue;
         }
 
-        OSSemPend(ipmi_recv_sem, 0, &err);
-
+        recv_intf = (uint32_t)OSQPend(ipmi_global.ipmi_req_que, 0, &err);
         if (err)
         {
             ipmi_err();
+            ipmi_put_free_ctx_entry(ctx_cmd);
             continue;
         }
 
-        switch (ipmi_recv_intf)
+        ctx_cmd->from_channel = (uint8_t)recv_intf;
+
+        switch (recv_intf)
         {
 #ifdef IPMI_MODULES_UART0_DEBUG
             case IPMI_INTF_DEBUG:
@@ -229,78 +112,83 @@ void ipmi_cmd_recv_task(void *args)
             continue;
         }
 
-        ctx_cmd->channel = ipmi_recv_intf;
         ctx_cmd->rq_seq = ctx_cmd->req.msg.rq_seq;
         ctx_cmd->req_len = ctx_cmd->req.msg.data_len - sizeof(struct _ipmi_req_cmd);
 
-        ipmi_recv_intf = 0;
-
-        OSQPost(ipmi_req_que, (void*)ctx_cmd);
+        OSQPost(ipmi_global.ipmi_prs_que, (void*)ctx_cmd);
     }
 }
 
 
 //*****************************************************************************
-//
 // Defines IPMI Command Process Task
-//
 //*****************************************************************************
 void ipmi_cmd_proc_task(void *args)
 {
-    INT8U err = 0;
+    uint8_t err = 0;
     struct ipmi_ctx *ctx_cmd;
 
     while (1)
     {
-        ctx_cmd = (struct ipmi_ctx*)OSQPend(ipmi_req_que, 0, &err);
+        ctx_cmd = (struct ipmi_ctx*)OSQPend(ipmi_global.ipmi_prs_que, 0, &err);
         if (err)
         {
             ipmi_err();
             continue;
         }
 
-        DEBUG("rs_sa=0x%x\r\n", ctx_cmd->req.msg.rs_sa);
-        DEBUG("netfn=0x%x\r\n", ctx_cmd->req.msg.netfn);
-        DEBUG("rs_lun=0x%x\r\n", ctx_cmd->req.msg.rs_lun);
-        DEBUG("checksum=0x%x\r\n", ctx_cmd->req.msg.checksum1);
-        DEBUG("rq_sa=0x%x\r\n", ctx_cmd->req.msg.rq_sa);
-        DEBUG("rq_seq=0x%x\r\n", ctx_cmd->req.msg.rq_seq);
-        DEBUG("rq_lun=0x%x\r\n", ctx_cmd->req.msg.rq_lun);
-        DEBUG("cmd=0x%x\r\n", ctx_cmd->req.msg.cmd);
-        DEBUG("datalen=%d\r\n", ctx_cmd->req_len);
+        DEBUG("proc netfn=0x%x\r\n", ctx_cmd->req.msg.netfn);
+        DEBUG("proc cmd=0x%x\r\n", ctx_cmd->req.msg.cmd);
+        DEBUG("proc rs_sa=0x%x\r\n", ctx_cmd->req.msg.rs_sa);
+        DEBUG("proc rs_lun=0x%x\r\n", ctx_cmd->req.msg.rs_lun);
+        DEBUG("proc checksum=0x%x\r\n", ctx_cmd->req.msg.checksum1);
+        DEBUG("proc rq_sa=0x%x\r\n", ctx_cmd->req.msg.rq_sa);
+        DEBUG("proc rq_seq=0x%x\r\n", ctx_cmd->req.msg.rq_seq);
+        DEBUG("proc rq_lun=0x%x\r\n", ctx_cmd->req.msg.rq_lun);
+        DEBUG("proc datalen=%d\r\n", ctx_cmd->req_len);
 
         switch (ctx_cmd->req.msg.netfn)
         {
-            case IPMI_NETFN_CHASSIS:
+            case IPMI_NETFN_REQ_CHASSIS:
                 err = ipmi_cmd_chassis(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_BRIDGE:
+            case IPMI_NETFN_REQ_BRIDGE:
                 err = ipmi_cmd_bridge(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_SE:
+            case IPMI_NETFN_REQ_SE:
                 err = ipmi_cmd_se(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_APP:
+            case IPMI_NETFN_REQ_APP:
                 err = ipmi_cmd_app(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_FIRMWARE:
+            case IPMI_NETFN_REQ_FIRMWARE:
                 err = ipmi_cmd_firmware(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_STORAGE:
+            case IPMI_NETFN_REQ_STORAGE:
                 err = ipmi_cmd_storage(ctx_cmd);
                 break;
 
-            case IPMI_NETFN_TRANSPORT:
+            case IPMI_NETFN_REQ_TRANSPORT:
                 err = ipmi_cmd_transport(ctx_cmd);
                 break;
 
             case IPMI_NETFN_PICMG:
                 err = ipmi_cmd_picmg(ctx_cmd);
+                break;
+
+            case IPMI_NETFN_RSP_CHASSIS:
+            case IPMI_NETFN_RSP_BRIDGE:
+            case IPMI_NETFN_RSP_SE:
+            case IPMI_NETFN_RSP_APP:
+            case IPMI_NETFN_RSP_FIRMWARE:
+            case IPMI_NETFN_RSP_STORAGE:
+            case IPMI_NETFN_RSP_TRANSPORT:
+                ipmi_cmd_response(ctx_cmd);
                 break;
 
             default:
@@ -323,16 +211,14 @@ void ipmi_cmd_proc_task(void *args)
         }
         else
         {
-            OSQPost(ipmi_rsp_que, (void*)ctx_cmd);
+            OSQPost(ipmi_global.ipmi_rsp_que, (void*)ctx_cmd);
         }
     }
 }
 
 
 //*****************************************************************************
-//
 // Defines IPMI Command Send Task
-//
 //*****************************************************************************
 void ipmi_cmd_send_task(void *args)
 {
@@ -341,16 +227,24 @@ void ipmi_cmd_send_task(void *args)
 
     while (1)
     {
-        ctx_cmd = (struct ipmi_ctx *)OSQPend(ipmi_rsp_que, 0, &err);
+        ctx_cmd = (struct ipmi_ctx *)OSQPend(ipmi_global.ipmi_rsp_que, 0, &err);
         if (err)
         {
             ipmi_err();
             continue;
         }
 
-        DEBUG("ipmi sendto=%d\r\n", ctx_cmd->channel);
+        DEBUG("ipmi sendto=%d\r\n", ctx_cmd->to_channel);
+        DEBUG("rsp data_len=%d\r\n", ctx_cmd->rsp.msg.data_len);
+        DEBUG("rsp netfn=%d\r\n", ctx_cmd->rsp.msg.netfn);
+        DEBUG("rsp cmd=%d\r\n", ctx_cmd->rsp.msg.cmd);
+        DEBUG("rsp rq_sa=%d\r\n", ctx_cmd->rsp.msg.rq_sa);
+        DEBUG("rsp rs_sa=%d\r\n", ctx_cmd->rsp.msg.rs_sa);
+        DEBUG("rsp rq_lun=%d\r\n", ctx_cmd->rsp.msg.rq_lun);
+        DEBUG("rsp rs_lun=%d\r\n", ctx_cmd->rsp.msg.rs_lun);
+        DEBUG("rsp rq_seq=%d\r\n", ctx_cmd->rsp.msg.rq_seq);
 
-        switch (ctx_cmd->channel)
+        switch (ctx_cmd->to_channel)
         {
 #ifdef IPMI_MODULES_UART0_DEBUG
             case IPMI_INTF_DEBUG:
@@ -390,17 +284,164 @@ void ipmi_cmd_send_task(void *args)
                 // log error
                 break;
         }
-        ipmi_put_free_ctx_entry(ctx_cmd);
+
+        if (!(ctx_cmd->flags & IPMI_CTX_BRIDGE)) {
+            ipmi_put_free_ctx_entry(ctx_cmd);
+        }
     }
-#if 0
-    while (1) {
-        OSTimeDlyHMSM(0, 1, 0, 0);
-    }
-#endif
 }
 
+void ipmi_msg_proc_task(void *args)
+{
+    uint8_t err;
+    uint16_t new_sel_id;
+    sel_event_record newsel;
+    struct event_request_message *evm;
+    struct ipmi_req *req;
+    char msg_cmd[32] = {0};
+
+    while (1)
+    {
+        evm = (struct event_request_message *)OSQPend(ipmi_global.ipmi_msg_que, 0, &err);
+        if (err)
+        {
+            ipmi_err();
+            continue;
+        }
+
+        newsel.record_type = 0x02;
+        newsel.sel_type.standard_type.id_type = 0x1;
+        newsel.sel_type.standard_type.ipmb_slave_addr = 0x0;
+        newsel.sel_type.standard_type.ipmb_dev_lun = 0x0;
+        newsel.sel_type.standard_type.channel_number = 0x0;
+        newsel.sel_type.standard_type.evm_rev = evm->evm_rev;
+        newsel.sel_type.standard_type.sensor_type = evm->sensor_type;
+        newsel.sel_type.standard_type.sensor_num = evm->sensor_num;
+        newsel.sel_type.standard_type.event_type = evm->event_type;
+        newsel.sel_type.standard_type.event_dir = evm->event_dir;
+        newsel.sel_type.standard_type.event_data[0] = evm->event_data[0];
+        newsel.sel_type.standard_type.event_data[1] = evm->event_data[1];
+        newsel.sel_type.standard_type.event_data[2] = evm->event_data[2];
+
+        // add sel to eeprom
+        new_sel_id = ipmi_add_sel(&newsel, newsel.record_type);
+        if (new_sel_id == 0)
+        {
+            ipmi_err();
+        }
+
+        // event receiver is enable, send the event message to IPMB
+        if (ipmi_global.event_recv_addr != 0xff)
+        {
+            req = (struct ipmi_req *)&msg_cmd[0];
+
+            req->msg.data_len = sizeof(struct _ipmi_req_cmd) + sizeof(struct event_request_message);
+            req->msg.rs_sa = ipmi_global.event_recv_addr;
+            req->msg.rs_lun = ipmi_global.event_recv_lun;;
+            req->msg.netfn = PLATFORM_EVENT;
+            req->msg.cmd = IPMI_NETFN_REQ_SE;
+            req->msg.rq_sa = ipmi_global.ipmb_addr;
+            req->msg.rq_lun = 0x0;
+            req->msg.rq_seq = 0x01;
+            req->msg.checksum1 = 0xff;
+            memcpy(&req->data[0], evm, sizeof(struct event_request_message));
+
+            err = I2C_i2c0_ipmb_write(req->msg.rs_sa, msg_cmd, req->msg.data_len);
+            DEBUG("send msg to receiver rq_sa=0x%x, rs_sa=0x%x err=0x%x\r\n", req->msg.rq_sa, req->msg.rs_sa, err);
+        }
+    }
+}
+
+//*****************************************************************************
+// Defines IPMI Test Task
+//*****************************************************************************
 void ipmi_cmd_test_task(void *args)
 {
+#if 0
+    // SPI0 master to FPGA test
+    {
+        uint8_t spibuf[3] = {0};
+        uint8_t i;
+
+        while (1)
+        {
+#if 1
+            for (i = 0; i < 15; i++)
+            {
+                spibuf[0] = 0x80;
+                spibuf[1] = i;
+                spibuf[2] = i;
+
+                SPI_spi0_xfer(spibuf, 3, 0, 0);
+                DEBUG("write_spi data=0x%x\r\n", spibuf[2]);
+            }
+
+            OSTimeDlyHMSM(0, 0, 1, 0);
+#endif
+            for (i = 0; i < 15; i++)
+            {
+                spibuf[0] = 0x00;
+                spibuf[1] = i;
+                spibuf[2] = 0;
+
+                SPI_spi0_xfer(spibuf, 2, &spibuf[2], 1);
+                DEBUG("read_spi data=0x%x\r\n", spibuf[2]);
+            }
+
+            OSTimeDlyHMSM(0, 0, 3, 0);
+        }
+
+    }
+#endif
+
+#if 0
+    {
+#define IPMB_SELF_ADDR  (0x71)
+#define SLAVE_ADDR      (0x73)          // 定义从机地址
+#if 0
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);                 // 使能I2C模块
+        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);                // 使能I2C管脚所在的GPIO模块
+        GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_2 | GPIO_PIN_3);   // 配置相关管脚为I2C收发功能
+
+        I2CSlaveInit(I2C0_SLAVE_BASE, SLAVE_ADDR);                  // I2C从机模块初始化
+        I2CSlaveIntEnable(I2C0_SLAVE_BASE);                         // 使能I2C从机模块中断
+        IntEnable(INT_I2C0);                                        // 使能I2C中断
+        I2CSlaveEnable(I2C0_SLAVE_BASE);                            // 使能I2C从机
+#endif
+        {
+            unsigned char ulDataTx[128] = {0};
+            unsigned char i;
+            unsigned long error;
+            struct ipmi_req *req;
+
+            ulDataTx[0] = IPMI_FRAME_CHAR[0];
+            ulDataTx[1] = IPMI_FRAME_CHAR[1];
+            ulDataTx[2] = IPMI_FRAME_CHAR[2];
+
+            req = (struct ipmi_req *)&ulDataTx[3];
+
+            req->msg.data_len = 7;
+            req->msg.rs_sa = SLAVE_ADDR;
+            req->msg.netfn = 0x06;
+            req->msg.rs_lun = 0x0;
+            req->msg.checksum1 = 0xff;
+            req->msg.rq_sa = IPMB_SELF_ADDR;
+            req->msg.rq_lun = 0x0;
+            req->msg.rq_seq = 0x01;
+            req->msg.cmd = 0x01;
+
+            while (1) {
+                OSTimeDlyHMSM(0, 0, 5, 0);
+                DEBUG("netfn=0x%x cmd=0x%x rs_sa=0x%x rq_sa=0x%x ",
+                    req->msg.netfn, req->msg.cmd, req->msg.rs_sa, req->msg.rq_sa);
+                error = I2C_dev_write(I2C0_MASTER_BASE, SLAVE_ADDR, 0, 1, 20, &ulDataTx[0]);
+                DEBUG("error=0x%x\r\n", error);
+                //SysCtlDelay(10000000);
+            }
+        }
+    }
+#endif
+
 #if 0
     // test for eeprom
 
@@ -601,31 +642,28 @@ void ipmi_cmd_test_task(void *args)
 
 
 //*****************************************************************************
-//
 // Defines IPMI Main Task
-//
 //*****************************************************************************
 void ipmi_task_main(void *args)
 {
-    // 读写任务信号量
-    ipmi_recv_sem = OSSemCreate(0);
-    //ipmi_send_sem = OSSemCreate(0);
+    // 信号量初始化
+    ipmi_global.ipmi_sem = OSSemCreate(1);
 
-    // IPMI请求相应消息队列
-    ipmi_req_que = OSQCreate((void**)&ipmi_req_que_pool, IPMI_CMD_QUE_SIZE);
-    ipmi_rsp_que = OSQCreate((void**)&ipmi_rsp_que_pool, IPMI_CMD_QUE_SIZE);
-
-    // IPMI上下文缓冲池
-    memset(ipmi_ctx_pool, 0, sizeof(ipmi_ctx_pool));
+    // 消息队列初始化
+    ipmi_global.ipmi_req_que = OSQCreate(&ipmi_global.ipmi_req_que_pool[0], IPMI_MSG_QUE_SIZE);
+    ipmi_global.ipmi_prs_que = OSQCreate(&ipmi_global.ipmi_prs_que_pool[0], IPMI_MSG_QUE_SIZE);
+    ipmi_global.ipmi_rsp_que = OSQCreate(&ipmi_global.ipmi_rsp_que_pool[0], IPMI_MSG_QUE_SIZE);
+    ipmi_global.ipmi_msg_que = OSQCreate(&ipmi_global.ipmi_msg_que_pool[0], IPMI_MSG_QUE_SIZE);
 
     ipmi_modules_init();
     ipmi_sensors_init();
 
     // IPMI任务
-    OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
-    OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
     OSTaskCreate(ipmi_cmd_send_task, (void*)0, (OS_STK*)&send_task_stk[STK_SIZE-1], (INT8U)4);
-    OSTaskCreate(ipmi_cmd_test_task, (void*)0, (OS_STK*)&test_task_stk[STK_SIZE-1], (INT8U)7);
+    OSTaskCreate(ipmi_cmd_proc_task, (void*)0, (OS_STK*)&proc_task_stk[STK_SIZE-1], (INT8U)5);
+    OSTaskCreate(ipmi_cmd_recv_task, (void*)0, (OS_STK*)&recv_task_stk[STK_SIZE-1], (INT8U)6);
+    OSTaskCreate(ipmi_msg_proc_task, (void*)0, (OS_STK*)&mesg_task_stk[STK_SIZE-1], (INT8U)7);
+    OSTaskCreate(ipmi_cmd_test_task, (void*)0, (OS_STK*)&test_task_stk[STK_SIZE-1], (INT8U)30);
 
     // IPMI定时器
     ipmi_timer_init();

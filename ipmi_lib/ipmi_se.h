@@ -16,6 +16,23 @@
 #include "ipmi_lib/ipmi.h"
 
 
+struct event_reciver_st {
+#ifdef __LITTLE_ENDIAN__
+    uint8_t always_zero:1,
+            event_receiver_slave_address:7;
+#else
+    uint8_t event_receiver_slave_address:7,
+            always_zero:1;
+#endif
+#ifdef __LITTLE_ENDIAN__
+    uint8_t event_receiver_lun:2,
+            reserved:6;
+#else
+    uint8_t reserved:6,
+            event_receiver_lun:2;
+#endif
+};
+
 /* sdr record type macros */
 #define SDR_RECORD_TYPE_FULL_SENSOR                 0x01
 #define SDR_RECORD_TYPE_COMPACT_SENSOR              0x02
@@ -877,6 +894,11 @@ typedef struct sdr_record_header_key {
 } SDR_RECORD_HEADER_KEY;
 #pragma pack()
 
+#define SDR_RECORD_ID(sdr)          (((SDR_RECORD_HEADER_KEY*)sdr)->header.record_id)
+#define SDR_RECORD_TYPE(sdr)        (((SDR_RECORD_HEADER_KEY*)sdr)->header.record_type)
+#define SDR_SENSOR_NUMBER(sdr)      (((SDR_RECORD_HEADER_KEY*)sdr)->key.sensor_number)
+
+
 //*****************************************************************************
 // Full Sensor Record
 //*****************************************************************************
@@ -1203,7 +1225,7 @@ struct mc_locator_record_key {
                                        7-bit I2C Slave Address of device on channel. */
 #else
     uint8_t dev_slave_addr:7,
-            rsv1:1;
+            alive:1;
 #endif
 
 #ifdef __LITTLE_ENDIAN__
@@ -1223,6 +1245,8 @@ struct mc_locator_record_key {
 };
 #pragma pack()
 
+#define SDR_MC_LOCATOR_ALIVE(sdr,live)  (((SDR_RECORD_MC_LOCATOR*)sdr)->key.alive = (live))
+#define SDR_MC_LOCATOR_ADDR(sdr)        (((SDR_RECORD_MC_LOCATOR*)sdr)->key.dev_slave_addr)
 /*
  * SDR Type 12h - Management Controller Device Locator Record
  */

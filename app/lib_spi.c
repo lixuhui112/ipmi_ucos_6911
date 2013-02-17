@@ -19,14 +19,15 @@
 #include "ucos_ii.h"
 #include "third_party/ustdlib.h"
 
+#if (defined(IPMI_MODULES_SPI1_SSIF))
 #define SPI_BUF_SIZE 0x80
-static unsigned char spi_rx_buf[SPI_BUF_SIZE];
-static unsigned char spi_tx_buf[SPI_BUF_SIZE];
-static unsigned char spi_rx_idx;
-static unsigned char spi_tx_idx;
-static unsigned char spi_rx_len;
-static unsigned char spi_tx_len;
-static unsigned long spi_rx_timestamp;
+static unsigned char spi1_rx_buf[SPI_BUF_SIZE];
+static unsigned char spi1_tx_buf[SPI_BUF_SIZE];
+static unsigned char spi1_rx_idx;
+static unsigned char spi1_tx_idx;
+static unsigned char spi1_rx_len;
+static unsigned char spi1_tx_len;
+static unsigned long spi1_rx_timestamp;
 
 //*****************************************************************************
 //
@@ -57,7 +58,7 @@ void SPI_spi1_int_handler(void)
     SSIIntClear(SSI1_BASE, status);
 
     // if recvie frame time out, reset the frame
-    if (OSTimeGet() - spi_rx_timestamp > SYSTICKHZ * 2)
+    if (OSTimeGet() - spi1_rx_timestamp > SYSTICKHZ * 5)
     {
         spi1_frame = 0;
     }
@@ -67,7 +68,7 @@ void SPI_spi1_int_handler(void)
     //IO_led0_set(onoff);
 
     // save the recvie frame time stamp
-    spi_rx_timestamp = OSTimeGet();
+    spi1_rx_timestamp = OSTimeGet();
 
     // for debug interrupt status
     //usprintf(cntbuf, "[%02x] ", status);
@@ -139,8 +140,8 @@ void SPI_spi1_int_handler(void)
                         if (spi1_size == 0)
                         {
                             spi1_size = (unsigned char)data;
-                            spi_rx_idx = 0;
-                            spi_rx_len = 0;
+                            spi1_rx_idx = 0;
+                            spi1_rx_len = 0;
 
                             if (spi1_size > SPI_BUF_SIZE)
                             {
@@ -149,13 +150,13 @@ void SPI_spi1_int_handler(void)
                             }
                         }
 
-                        spi_rx_buf[spi_rx_idx++] = (unsigned char)data;
+                        spi1_rx_buf[spi1_rx_idx++] = (unsigned char)data;
 
-                        if (spi_rx_idx == spi1_size)
+                        if (spi1_rx_idx == spi1_size)
                         {
                             //DEBUG_UARTSend("%");
 
-                            spi_rx_len = spi_rx_idx;
+                            spi1_rx_len = spi1_rx_idx;
                             ipmi_intf_recv_post(IPMI_INTF_SSIF);
 
                             spi1_op = 0;
@@ -177,7 +178,7 @@ void SPI_spi1_int_handler(void)
             // 命令: 获取状态
             if (spi1_op == IPMI_FRAME_CMD_STATE)
             {
-                SSIDataPutNonBlocking(SSI1_BASE, spi_tx_len);
+                SSIDataPutNonBlocking(SSI1_BASE, spi1_tx_len);
 
                 spi1_op = 0;
                 spi1_frame = 0;
@@ -190,18 +191,18 @@ void SPI_spi1_int_handler(void)
             {
                 for (i = 0; i < 4; i++)
                 {
-                    if (spi_tx_idx < spi_tx_len)    // 正在发送数据
+                    if (spi1_tx_idx < spi1_tx_len)    // 正在发送数据
                     {
-                        data = (unsigned long)spi_tx_buf[spi_tx_idx];
+                        data = (unsigned long)spi1_tx_buf[spi1_tx_idx];
                         SSIDataPutNonBlocking(SSI1_BASE, data);
-                        spi_tx_idx++;
+                        spi1_tx_idx++;
                     }
                 }
 
-                if (spi_tx_idx == spi_tx_len)        // 发送完成
+                if (spi1_tx_idx == spi1_tx_len)        // 发送完成
                 {
-                    spi_tx_idx = 0;
-                    spi_tx_len = 0;
+                    spi1_tx_idx = 0;
+                    spi1_tx_len = 0;
 
                     spi1_op = 0;
                     spi1_frame = 0;
@@ -282,12 +283,12 @@ int SPI_spi1_read(char *buf, unsigned long *size)
 {
     unsigned long i;
 
-    for (i = 0; i < spi_rx_len; i++)
+    for (i = 0; i < spi1_rx_len; i++)
     {
-        buf[i] = spi_rx_buf[i];
+        buf[i] = spi1_rx_buf[i];
     }
 
-    *size = spi_rx_len;
+    *size = spi1_rx_len;
 
     return 0;
 }
@@ -299,20 +300,21 @@ int SPI_spi1_write(char *buf, unsigned long size)
     // 先写前导码
     for (i = 0; i < IPMI_FRAME_CHAR_SIZE; i++)
     {
-        spi_tx_buf[i] = IPMI_FRAME_CHAR[i];
+        spi1_tx_buf[i] = IPMI_FRAME_CHAR[i];
     }
 
     // 写数据
     for (j = 0; j < size && i < SPI_BUF_SIZE; j++, i++)
     {
-        spi_tx_buf[i] = buf[j];
+        spi1_tx_buf[i] = buf[j];
     }
 
-    spi_tx_idx = 0;
-    spi_tx_len = i;
+    spi1_tx_idx = 0;
+    spi1_tx_len = i;
 
     return 0;
 }
+#endif
 
 
 //*****************************************************************************
@@ -538,6 +540,8 @@ void SPI_spi0_xfer(unsigned char *pucDataOut, unsigned long ulOutCount,
 }
 #endif
 
+
+#if (defined(IPMI_MODULES_SPI0_CPLD))
 //*****************************************************************************
 //
 // This will use library function driven transfer to the SSI peripheral.
@@ -564,6 +568,9 @@ void SPI_spi0_xfer(unsigned char *pucDataOut, unsigned long ulOutCount,
         //
         ulDataTx = *pucDataOut++;
         SSIDataPut(SSI0_BASE, ulDataTx);
+
+        // Read and Drop no use data
+        SSIDataGet(SSI0_BASE, &ulDataRx);
     }
 
     //
@@ -637,7 +644,7 @@ void SPI_spi0_master_init(void)
     // Enable the SSI0 module.
     SSIEnable(SSI0_BASE);
 }
-
+#endif
 
 
 //*****************************************************************************

@@ -76,16 +76,14 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
                 struct ipmi_chassis_capabilities_rsp *capa_rsp;
 
                 capa_rsp = (struct ipmi_chassis_capabilities_rsp*)&ctx_cmd->rsp.data[0];
-
-                ctx_cmd->rsp.msg.data_len = sizeof(struct ipmi_chassis_capabilities_rsp);
-                ctx_cmd->rsp.msg.ccode = IPMI_CC_OK;
-
                 capa_rsp->capabilities_flag = 0;
                 capa_rsp->chassis_fru_dev_addr = I2C_i2c0_ipmb_self_addr_get();
                 capa_rsp->sdr_dev_addr = AT24CXX_SLAVE_ADDR;
                 capa_rsp->sel_dev_addr = AT24CXX_SLAVE_ADDR;
                 capa_rsp->sys_dev_addr = 0;
                 capa_rsp->bridge_dev_addr = 0;
+
+                ipmi_cmd_ok(ctx_cmd, sizeof(struct ipmi_chassis_capabilities_rsp));
             }
             break;
 
@@ -103,6 +101,8 @@ int ipmi_cmd_chassis(struct ipmi_ctx *ctx_cmd)
                 status_rsp->last_pow_env    = chassis_last_power_event;
                 status_rsp->chassis_state   = chassis_state;
                 status_rsp->front_p_button_status   = 0;
+
+                ipmi_cmd_ok(ctx_cmd, sizeof(struct ipmi_chassis_status_rsp));
             }
             break;
 
