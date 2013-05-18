@@ -45,16 +45,16 @@ void ipmi_bmc_get_device_id(struct ipmi_ctx *ctx_cmd)
 void ipmi_bmc_set_global_enables(struct ipmi_ctx *ctx_cmd)
 {
     if (ctx_cmd->req.data[0] & EN_RCV_MSG_QUE_INT) {
-        ipmi_global.bmc_global_enable |= EN_RCV_MSG_QUE_INT;
+        BIT_SET(ipmi_global.bmc_global_enable, EN_RCV_MSG_QUE_INT);
     }
     if (ctx_cmd->req.data[0] & EN_EVT_MSG_BUF_FUL_INT) {
-        ipmi_global.bmc_global_enable |= EN_EVT_MSG_BUF_FUL_INT;
+        BIT_SET(ipmi_global.bmc_global_enable, EN_EVT_MSG_BUF_FUL_INT);
     }
     if (ctx_cmd->req.data[0] & EN_EVT_MSG_BUF) {
-        ipmi_global.bmc_global_enable |= EN_EVT_MSG_BUF;
+        BIT_SET(ipmi_global.bmc_global_enable, EN_EVT_MSG_BUF);
     }
     if (ctx_cmd->req.data[0] & EN_SYS_EVT_LOG) {
-        ipmi_global.bmc_global_enable |= EN_SYS_EVT_LOG;
+        BIT_SET(ipmi_global.bmc_global_enable, EN_SYS_EVT_LOG);
     }
     ipmi_cmd_ok(ctx_cmd, 0);
 }
@@ -95,6 +95,7 @@ void ipmi_get_channel_info_command(struct ipmi_ctx *ctx_cmd)
         case IPMI_CH_NUM_PMB:
         case IPMI_CH_NUM_LAN:
         case IPMI_CH_NUM_SYS_INTERFACE:
+            // use provide ch number
             break;
 
         default:
@@ -148,6 +149,25 @@ void ipmi_enable_msg_ch_recv(struct ipmi_ctx *ctx_cmd)
 
 void ipmi_get_message(struct ipmi_ctx *ctx_cmd)
 {
+    struct ipmi_ctx *old_ctx;
+    uint8_t data_len;
+
+    if (ipmi_global.bmc_message_flags) {
+        // have message
+        old_ctx = ipmi_msg_queue_pull();
+        ctx_cmd->rsp.data[0] = (IPMI_PV_LEVEL_NONE << 4) | (old_ctx->to_channel & 0x0f);
+        data_len = old_ctx->rsp.msg.data_len + sizeof(struct _ipmi_rsp_cmd);
+
+        memcpy(&ctx_cmd->rsp.data[1], (char*)&old_ctx->rsp, data_len);
+
+        // free old_ctx;
+        ipmi_put_free_ctx_entry(old_ctx);
+
+        ipmi_cmd_ok(ctx_cmd, data_len + 1);
+    } else {
+        // no message
+        ipmi_cmd_err(ctx_cmd, IPMI_CC_CANT_RET_NUM_REQ_BYTES);
+    }
 }
 
 void ipmi_send_message(struct ipmi_ctx *ctx_cmd)

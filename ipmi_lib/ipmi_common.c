@@ -293,24 +293,39 @@ void ipmi_msg_queue_push(struct ipmi_ctx *ctx_cmd)
         }
     }
 
+    BIT_SET(ipmi_global.bmc_message_flags, EN_RCV_MSG_QUE_INT);
+
     OSSemPost(ipmi_global.ipmi_sem);
 }
 
-void ipmi_msg_queue_pull(void)
+struct ipmi_ctx *ipmi_msg_queue_pull(void)
 {
-    uint8_t error;
+    uint8_t error, count, i;
+    struct ipmi_ctx *que_ctx;
 
     OSSemPend(ipmi_global.ipmi_sem, 0, &error);
     if (error) {
-        return;
+        return NULL;
     }
 
-    for (uint8_t i = 0; i < IPMI_RCV_MESG_SIZE-1; i++) {
+    count = 0;
+    que_ctx = ipmi_global.recv_msg_que[0];
+
+    for (i = 0; i < IPMI_RCV_MESG_SIZE-1; i++) {
         ipmi_global.recv_msg_que[i] = ipmi_global.recv_msg_que[i+1];
+        if (ipmi_global.recv_msg_que[i]) {
+            count++;
+        }
     }
     ipmi_global.recv_msg_que[i] = NULL;
 
+    if (!count) {
+        BIT_CLR(ipmi_global.bmc_message_flags, EN_RCV_MSG_QUE_INT);
+    }
+
     OSSemPost(ipmi_global.ipmi_sem);
+
+    return que_ctx;
 }
 
 //*****************************************************************************
@@ -359,7 +374,7 @@ void ipmi_cmd_response(struct ipmi_ctx *ctx_cmd)
     struct ipmi_ctx *old_ctx;
     struct ipmi_rsp *rsp;
 
-    rsp = (struct ipmi_rsp *)ctx_cmd->req;
+    rsp = (struct ipmi_rsp *)&ctx_cmd->req;
 
     old_ctx = ipmi_get_bdg_ctx_entry(rsp->msg.rq_seq);
     if (old_ctx)
@@ -374,7 +389,7 @@ void ipmi_cmd_response(struct ipmi_ctx *ctx_cmd)
         old_ctx->rsp.msg.checksum1 = rsp->msg.checksum1;
         old_ctx->rsp.msg.rq_seq = rsp->msg.rq_seq;
         old_ctx->rsp.msg.ccode = rsp->msg.ccode;
-        memcpy(old_ctx->rsp.data[0], rsp->data[0], rsp->msg.data_len - sizeof(struct _ipmi_rsp_cmd));
+        memcpy(&old_ctx->rsp.data[0], &rsp->data[0], rsp->msg.data_len - sizeof(struct _ipmi_rsp_cmd));
 
         // add old_ctx to ipmi_global.recv_msg_que
         ipmi_msg_queue_push(old_ctx);

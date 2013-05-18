@@ -27,7 +27,7 @@ int ipmi_debug_recv(struct ipmi_ctx *ctx_cmd)
 int ipmi_debug_send(struct ipmi_ctx *ctx_cmd)
 {
     IPMI_DBGU_WRITE((char*)(&ctx_cmd->rsp),
-        ctx_cmd->rsp.msg.data_len + sizeof(ctx_cmd->rsp.msg));
+        ctx_cmd->rsp.msg.data_len + sizeof(struct _ipmi_rsp_cmd));
 
     return 0;
 }
@@ -51,7 +51,7 @@ int ipmi_icmb_recv(struct ipmi_ctx *ctx_cmd)
 int ipmi_icmb_send(struct ipmi_ctx *ctx_cmd)
 {
     IPMI_ICMB_WRITE((char*)(&ctx_cmd->rsp),
-        ctx_cmd->rsp.msg.data_len + sizeof(ctx_cmd->rsp.msg));
+        ctx_cmd->rsp.msg.data_len + sizeof(struct _ipmi_rsp_cmd));
 
     return 0;
 }

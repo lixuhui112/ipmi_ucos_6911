@@ -9,6 +9,7 @@
 //*****************************************************************************
 
 #include "ipmi.h"
+#include <ucos_ii.h>
 
 #ifndef __IPMI_COMMON_H__
 #define __IPMI_COMMON_H__
@@ -36,8 +37,10 @@
 #define B32_B2H(X)              (X)             /* 32 bit big endian to host */
 #endif
 
-#define BIT_CLR(x,m)            (x = ((x) & (~m)))
-#define BIT_SET(x,m,b)          (x = ((x) & (~m) | ((m) & (b))))
+#define BIT_CLR(x,b)            (x = ((x) & (~b)))
+#define BIT_SET(x,b)            (x = ((x) | (b)))
+#define BIT_MASK_SET(x,m,b)     (x = ((x) & (~m) | ((m) & (b))))
+#define BIT_TST(x,b)            ((x) | (b))
 
 //*****************************************************************************
 //
@@ -189,7 +192,7 @@ struct ipmi_ctx *ipmi_get_bdg_ctx_entry(uint8_t rq_seq);
 void ipmi_put_free_ctx_entry(struct ipmi_ctx *ctx);
 
 void ipmi_msg_queue_push(struct ipmi_ctx *ctx_cmd);
-void ipmi_msg_queue_pull(void);
+struct ipmi_ctx *ipmi_msg_queue_pull(void);
 
 #endif  // __IPMI_COMMON_H__
 

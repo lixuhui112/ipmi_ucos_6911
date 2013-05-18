@@ -37,7 +37,7 @@ History:
 #define AT24C64_PAGE_NUM            256     /* 总共256个页面 */
 #define AT24C64_ADDR_SIZE           2
 
-const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {0x50};   /* 7bit address */
+const uint8_t at24xx_i2c_addr[MAX_AT24XX_COUNT] = {0x54};   /* 7bit address */
 
 I2C_DEVICE at24xx_dev[MAX_AT24XX_COUNT];
 

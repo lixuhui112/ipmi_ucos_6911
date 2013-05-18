@@ -27,7 +27,7 @@ int ipmi_ipmb_recv(struct ipmi_ctx *ctx_cmd)
 int ipmi_ipmb_send(struct ipmi_ctx *ctx_cmd)
 {
     IPMI_IPMB_WRITE(ctx_cmd->req.msg.rq_sa, (char*)(&ctx_cmd->rsp),
-        ctx_cmd->rsp.msg.data_len + sizeof(ctx_cmd->rsp.msg));
+        ctx_cmd->rsp.msg.data_len + sizeof(struct _ipmi_rsp_cmd));
 
     return 0;
 }

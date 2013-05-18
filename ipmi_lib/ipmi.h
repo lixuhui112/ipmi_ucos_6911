@@ -140,6 +140,14 @@
 #define IPMI_CH_SESSION_MUILTY                      0x2
 #define IPMI_CH_SESSION_BASED                       0x3
 
+#define IPMI_PV_LEVEL_NONE                          0x0
+#define IPMI_PV_LEVEL_CALLBACK                      0x1
+#define IPMI_PV_LEVEL_USER                          0x2
+#define IPMI_PV_LEVEL_OPERATOR                      0x3
+#define IPMI_PV_LEVEL_ADMIN                         0x4
+#define IPMI_PV_LEVEL_OEM                           0x5
+
+
 /* IPMI Sensor Type
  * See IPMI specification Table 42-3, Sensor Type Codes
  */

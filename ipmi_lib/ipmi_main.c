@@ -330,7 +330,13 @@ void ipmi_msg_proc_task(void *args)
             ipmi_err();
         }
 
+        if (BIT_TST(ipmi_global.bmc_global_enable, EN_EVT_MSG_BUF_FUL_INT))
+        {
+            BIT_SET(ipmi_global.bmc_message_flags, EN_EVT_MSG_BUF_FUL_INT);
+        }
+
         // event receiver is enable, send the event message to IPMB
+#if 0
         if (ipmi_global.event_recv_addr != 0xff)
         {
             req = (struct ipmi_req *)&msg_cmd[0];
@@ -349,6 +355,7 @@ void ipmi_msg_proc_task(void *args)
             err = I2C_i2c0_ipmb_write(req->msg.rs_sa, msg_cmd, req->msg.data_len);
             DEBUG("send msg to receiver rq_sa=0x%x, rs_sa=0x%x err=0x%x\r\n", req->msg.rq_sa, req->msg.rs_sa, err);
         }
+#endif
     }
 }
 
@@ -368,9 +375,9 @@ void ipmi_cmd_test_task(void *args)
 #if 1
             for (i = 0; i < 15; i++)
             {
-                spibuf[0] = 0x80;
+                spibuf[0] = 0x00;
                 spibuf[1] = i;
-                spibuf[2] = i;
+                spibuf[2] = 0xa0 + i;
 
                 SPI_spi0_xfer(spibuf, 3, 0, 0);
                 DEBUG("write_spi data=0x%x\r\n", spibuf[2]);
@@ -380,7 +387,7 @@ void ipmi_cmd_test_task(void *args)
 #endif
             for (i = 0; i < 15; i++)
             {
-                spibuf[0] = 0x00;
+                spibuf[0] = 0x80;
                 spibuf[1] = i;
                 spibuf[2] = 0;
 

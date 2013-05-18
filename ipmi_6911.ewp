@@ -166,7 +166,7 @@
           <name>CCDefines</name>
           <state>ewarm</state>
           <state>PART_LM3S6911</state>
-          <state>BOARD_6911_FAN</state>
+          <state>BOARD_6911_SWITCH</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -452,7 +452,7 @@
           <name>ADefines</name>
           <state>ewarm</state>
           <state>PART_LM3S6911</state>
-          <state>BOARD_6911_FAN</state>
+          <state>BOARD_6911_SWITCH</state>
         </option>
         <option>
           <name>AList</name>
@@ -1846,6 +1846,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_message.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\ipmi_lib\ipmi_pef.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\ipmi_lib\ipmi_picmg.c</name>

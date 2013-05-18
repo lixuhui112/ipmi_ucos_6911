@@ -378,7 +378,7 @@ void ipmi_get_sel_time(struct ipmi_ctx *ctx_cmd)
 
     rsp->timestamp = B32_H2L(ipmi_global.timestamp);
 
-    BIT_SET(ipmi_global.flags, BMC_SYNC_TIME_MASK, BMC_SYNC_TIME_SEC);
+    BIT_MASK_SET(ipmi_global.flags, BMC_SYNC_TIME_MASK, BMC_SYNC_TIME_SEC);
 
     ipmi_cmd_ok(ctx_cmd, sizeof(struct sel_time_st));
 }

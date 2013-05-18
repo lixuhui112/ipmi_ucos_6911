@@ -27,7 +27,7 @@ int ipmi_ssif_recv(struct ipmi_ctx *ctx_cmd)
 int ipmi_ssif_send(struct ipmi_ctx *ctx_cmd)
 {
     IPMI_SSIF_WRITE((char*)(&ctx_cmd->rsp),
-        ctx_cmd->rsp.msg.data_len + sizeof(ctx_cmd->rsp.msg));
+        ctx_cmd->rsp.msg.data_len + sizeof(struct _ipmi_rsp_cmd));
 
     return 0;
 }

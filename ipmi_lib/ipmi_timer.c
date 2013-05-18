@@ -35,7 +35,7 @@ void ipmi_timer_task(void *ptmr, void *param)
 
     // scan sensor chip who use period function per second
     if (ipmi_global.timestamp % IPMI_SENSOR_SCAN_PERIOD == 0) {
-        ipmi_sensor_scan_period();
+        //ipmi_sensor_scan_period();
         //ipmi_sensor_dead_limit();     // no use
     }
 }
